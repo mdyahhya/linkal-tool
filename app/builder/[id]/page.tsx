@@ -28,6 +28,13 @@ import {
   X,
   CheckCircle2,
   Layers,
+  Sliders as Menu,
+  Eye,
+  Edit3,
+  ChevronRight,
+  LogOut,
+  ShieldCheck,
+  Globe as LayoutGrid,
 } from 'lucide-react';
 import { SiteData, BannerSlide, ProductItem, PortfolioProject, PortfolioSkill } from '@/types/site';
 
@@ -40,6 +47,7 @@ const THEME_PRESETS = [
   { name: 'Rose', hex: '#e11d48' },
   { name: 'Sunset Orange', hex: '#ea580c' },
   { name: 'Cyan Tech', hex: '#0891b2' },
+  { name: 'Dark Slate', hex: '#18181b' },
 ];
 
 const FONTS: Array<SiteData['fontFamily']> = [
@@ -58,19 +66,17 @@ export default function BuilderPage() {
   const [site, setSite] = useState<SiteData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savedSuccess, setSavedSuccess] = useState(false);
-  const [viewport, setViewport] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
-  const [activeTab, setActiveTab] = useState<'general' | 'theme' | 'slider' | 'content'>('general');
-
-  // Deployment modal state
+  const [activeTab, setActiveTab] = useState<'general' | 'branding' | 'slider' | 'type_specific'>('general');
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [mobileViewMode, setMobileViewMode] = useState<'editor' | 'preview'>('editor');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
   const [deploying, setDeploying] = useState(false);
-  const [deployModalOpen, setDeployModalOpen] = useState(false);
-  const [deployError, setDeployError] = useState<string | null>(null);
+  const [deploymentLogs, setDeploymentLogs] = useState<any[]>([]);
 
-  // Preview iframe key to force reload
-  const [previewKey, setPreviewKey] = useState(Date.now());
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Load site data
   useEffect(() => {
     async function loadSite() {
       try {
@@ -79,16 +85,17 @@ export default function BuilderPage() {
         if (!res.ok) throw new Error('Site not found');
         const data = await res.json();
         setSite(data.site);
-      } catch (err: any) {
-        alert(err.message);
+      } catch (err) {
+        console.error('Failed to load site:', err);
         router.push('/dashboard');
       } finally {
         setLoading(false);
       }
     }
-    loadSite();
+    if (siteId) loadSite();
   }, [siteId, router]);
 
+  // Handle Save Draft
   const handleSave = async () => {
     if (!site) return;
     try {
@@ -98,987 +105,732 @@ export default function BuilderPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(site),
       });
+      if (!res.ok) throw new Error('Failed to save site');
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to save');
       setSite(data.site);
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 2500);
-      setPreviewKey(Date.now());
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Save failed');
     } finally {
       setSaving(false);
     }
   };
 
+  // Handle Publish
   const handlePublish = async () => {
     if (!site) return;
-    setDeployModalOpen(true);
+    setShowPublishModal(true);
     setDeploying(true);
-    setDeployError(null);
 
     try {
-      // Save changes first
+      // Save first
       await fetch(`/api/sites/${site.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(site),
       });
 
-      // Trigger pipeline
       const res = await fetch(`/api/sites/${site.id}/publish`, { method: 'POST' });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Pipeline execution failed');
+        throw new Error(data.error || 'Deployment failed');
       }
 
       setSite(data.site);
+      setDeploymentLogs(data.site.deploymentLogs || []);
     } catch (err: any) {
-      setDeployError(err.message || 'Deployment error');
+      alert(err.message || 'Publishing failed');
     } finally {
       setDeploying(false);
     }
   };
 
-  // State update helpers
-  const updateField = (field: keyof SiteData, value: any) => {
+  // Update site helper
+  const updateSiteField = <K extends keyof SiteData>(field: K, value: SiteData[K]) => {
     if (!site) return;
     setSite({ ...site, [field]: value });
   };
 
-  // Slider handlers
-  const addSlide = () => {
-    if (!site) return;
-    const newSlide: BannerSlide = {
-      id: `slide-${Date.now()}`,
-      imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1600&auto=format&fit=crop&q=80',
-      title: 'Exciting Special Offer',
-      subtitle: 'Order directly with personal WhatsApp assistance and fast delivery.',
-      ctaText: 'Chat on WhatsApp',
-    };
-    updateField('bannerSlider', [...(site.bannerSlider || []), newSlide]);
-  };
-
-  const removeSlide = (index: number) => {
-    if (!site || !site.bannerSlider) return;
-    const updated = [...site.bannerSlider];
-    updated.splice(index, 1);
-    updateField('bannerSlider', updated);
-  };
-
-  const updateSlide = (index: number, field: keyof BannerSlide, value: string) => {
-    if (!site || !site.bannerSlider) return;
-    const updated = [...site.bannerSlider];
-    updated[index] = { ...updated[index], [field]: value };
-    updateField('bannerSlider', updated);
-  };
-
-  // Product handlers (E-commerce)
-  const addProduct = () => {
-    if (!site) return;
-    const newProd: ProductItem = {
-      id: `prod-${Date.now()}`,
-      name: 'New Product Item',
-      price: '999',
-      currency: '₹',
-      description: 'Handcrafted luxury quality with guaranteed satisfaction.',
-      imageUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80',
-      badge: 'New',
-      inStock: true,
-    };
-    updateField('products', [...(site.products || []), newProd]);
-  };
-
-  const removeProduct = (index: number) => {
-    if (!site || !site.products) return;
-    const updated = [...site.products];
-    updated.splice(index, 1);
-    updateField('products', updated);
-  };
-
-  const updateProduct = (index: number, field: keyof ProductItem, value: any) => {
-    if (!site || !site.products) return;
-    const updated = [...site.products];
-    updated[index] = { ...updated[index], [field]: value };
-    updateField('products', updated);
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
   };
 
   if (loading || !site) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-xs text-slate-400">Loading website builder...</p>
-        </div>
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center space-y-3">
+        <div className="w-8 h-8 border-3 border-zinc-950 border-t-transparent rounded-full animate-spin" />
+        <p className="text-xs font-bold text-zinc-600">Loading site builder studio...</p>
       </div>
     );
   }
 
+  // Device width class
+  const getDeviceClass = () => {
+    switch (previewDevice) {
+      case 'mobile':
+        return 'w-[375px] h-[667px] rounded-3xl shadow-xl border-8 border-zinc-900';
+      case 'tablet':
+        return 'w-[768px] h-[900px] rounded-2xl shadow-xl border-8 border-zinc-900';
+      default:
+        return 'w-full h-full rounded-xl border border-zinc-200';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col h-screen overflow-hidden">
-      {/* Top Builder Toolbar */}
-      <header className="h-14 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md px-4 flex items-center justify-between z-20 shrink-0">
+    <div className="min-h-screen bg-zinc-50 flex flex-col text-zinc-950">
+      {/* Studio Header Bar */}
+      <header className="sticky top-0 z-30 bg-white border-b border-zinc-200 px-4 h-15 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
+          {/* Top-Left Hamburger Drawer Menu */}
           <button
-            onClick={() => router.push('/dashboard')}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            title="Back to Dashboard"
+            onClick={() => setIsMenuOpen(true)}
+            className="p-1.5 rounded-lg border border-zinc-200 text-zinc-900 hover:bg-zinc-100 transition-colors"
+            title="Open Menu"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <Menu className="w-5 h-5" />
           </button>
 
-          <div className="h-4 w-px bg-slate-800" />
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 hover:bg-zinc-100 transition-all"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Dashboard</span>
+          </button>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-white line-clamp-1">{site.name}</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono">
-                {site.slug}.dominal.in
-              </span>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="font-extrabold text-sm text-zinc-950 truncate max-w-[150px] sm:max-w-xs">
+              {site.name}
+            </span>
+            <span className="hidden sm:inline-flex px-2 py-0.5 rounded bg-zinc-100 font-mono text-[10px] font-bold text-zinc-700">
+              {site.slug}.dominal.in
+            </span>
           </div>
         </div>
 
-        {/* Viewport device switcher */}
-        <div className="hidden md:flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+        {/* Center: Device Viewport Switcher */}
+        <div className="hidden md:flex items-center gap-1 bg-zinc-100 p-1 rounded-xl border border-zinc-200">
           <button
-            onClick={() => setViewport('desktop')}
-            className={`p-1.5 rounded-lg text-xs font-medium transition-all ${
-              viewport === 'desktop' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-white'
+            onClick={() => setPreviewDevice('desktop')}
+            className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+              previewDevice === 'desktop'
+                ? 'bg-white text-zinc-950 shadow-xs font-bold'
+                : 'text-zinc-500 hover:text-zinc-950'
             }`}
-            title="Desktop view"
           >
-            <Monitor className="w-3.5 h-3.5" />
+            <Monitor className="w-4 h-4" />
+            <span>Desktop</span>
           </button>
           <button
-            onClick={() => setViewport('tablet')}
-            className={`p-1.5 rounded-lg text-xs font-medium transition-all ${
-              viewport === 'tablet' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-white'
+            onClick={() => setPreviewDevice('tablet')}
+            className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+              previewDevice === 'tablet'
+                ? 'bg-white text-zinc-950 shadow-xs font-bold'
+                : 'text-zinc-500 hover:text-zinc-950'
             }`}
-            title="Tablet view (768px)"
           >
-            <Tablet className="w-3.5 h-3.5" />
+            <Tablet className="w-4 h-4" />
+            <span>Tablet</span>
           </button>
           <button
-            onClick={() => setViewport('mobile')}
-            className={`p-1.5 rounded-lg text-xs font-medium transition-all ${
-              viewport === 'mobile' ? 'bg-slate-800 text-emerald-400 shadow-sm' : 'text-slate-400 hover:text-white'
+            onClick={() => setPreviewDevice('mobile')}
+            className={`p-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+              previewDevice === 'mobile'
+                ? 'bg-white text-zinc-950 shadow-xs font-bold'
+                : 'text-zinc-500 hover:text-zinc-950'
             }`}
-            title="Mobile view (375px)"
           >
-            <Smartphone className="w-3.5 h-3.5" />
+            <Smartphone className="w-4 h-4" />
+            <span>Mobile</span>
           </button>
         </div>
 
-        {/* Action buttons */}
+        {/* Right Header Actions */}
         <div className="flex items-center gap-2">
-          <a
-            href={`/api/sites/${site.id}/export`}
-            download
-            className="px-2.5 py-1.5 rounded-xl border border-slate-800 hover:border-slate-700 text-slate-400 hover:text-white bg-slate-900 text-xs font-medium flex items-center gap-1.5 transition-colors"
-            title="Export standalone index.html"
+          <button
+            onClick={() => window.open(`/api/sites/${site.id}/export`, '_blank')}
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-100 text-xs font-bold transition-all"
+            title="Download index.html bundle"
           >
             <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Export HTML</span>
-          </a>
+            <span>HTML</span>
+          </button>
 
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-950 text-xs font-bold transition-all disabled:opacity-50"
           >
-            {savedSuccess ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Saved!</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-3.5 h-3.5 text-slate-300" />
-                <span>{saving ? 'Saving...' : 'Save Draft'}</span>
-              </>
-            )}
+            <Save className="w-3.5 h-3.5 text-zinc-900" />
+            <span>{saving ? 'Saving...' : 'Save Draft'}</span>
           </button>
 
           <button
             onClick={handlePublish}
-            className="px-4 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all"
+            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all shadow-xs"
           >
-            <Rocket className="w-3.5 h-3.5" />
+            <Rocket className="w-3.5 h-3.5 text-emerald-400" />
             <span>Publish</span>
           </button>
         </div>
       </header>
 
-      {/* Main Builder Canvas: Left Sidebar + Right Live Iframe */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Control Panel */}
-        <aside className="w-full md:w-[420px] lg:w-[460px] bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 overflow-hidden">
-          {/* Navigation Tabs */}
-          <div className="flex border-b border-slate-800/80 bg-slate-950/60 p-1 gap-1 shrink-0">
+      {/* Slide-over Left Navigation Drawer */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="fixed inset-0 drawer-backdrop" onClick={() => setIsMenuOpen(false)} />
+          <div className="relative z-10 w-80 max-w-[85vw] bg-white h-full shadow-2xl flex flex-col justify-between border-r border-zinc-200 animate-in slide-in-from-left duration-200">
+            <div>
+              <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-950 text-white flex items-center justify-center font-bold">
+                    <Globe className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-zinc-950">Builder Navigation</h3>
+                    <p className="text-[11px] text-zinc-500 font-medium">Linkal Studio</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsMenuOpen(false)}
+                  className="p-1.5 rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <nav className="p-4 space-y-1">
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    router.push('/dashboard');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-100 text-zinc-700 hover:text-zinc-950 text-xs font-bold transition-all text-left"
+                >
+                  <LayoutGrid className="w-4 h-4 text-zinc-950" />
+                  <span>Dashboard Overview</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setActiveTab('general');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+                    activeTab === 'general'
+                      ? 'bg-zinc-100 text-zinc-950'
+                      : 'hover:bg-zinc-100 text-zinc-700'
+                  }`}
+                >
+                  <Sliders className="w-4 h-4 text-zinc-900" />
+                  <span>General &amp; WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setActiveTab('branding');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+                    activeTab === 'branding'
+                      ? 'bg-zinc-100 text-zinc-950'
+                      : 'hover:bg-zinc-100 text-zinc-700'
+                  }`}
+                >
+                  <Palette className="w-4 h-4 text-purple-600" />
+                  <span>Theme &amp; Typography</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setActiveTab('slider');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+                    activeTab === 'slider'
+                      ? 'bg-zinc-100 text-zinc-950'
+                      : 'hover:bg-zinc-100 text-zinc-700'
+                  }`}
+                >
+                  <ImageIcon className="w-4 h-4 text-blue-600" />
+                  <span>Banner Slider Manager</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setActiveTab('type_specific');
+                  }}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all ${
+                    activeTab === 'type_specific'
+                      ? 'bg-zinc-100 text-zinc-950'
+                      : 'hover:bg-zinc-100 text-zinc-700'
+                  }`}
+                >
+                  <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                  <span>Content &amp; Products</span>
+                </button>
+              </nav>
+            </div>
+
+            <div className="p-4 border-t border-zinc-100 bg-zinc-50">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-red-50 text-red-700 text-xs font-bold transition-all"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Log Out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Builder Main Work Area */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0">
+        {/* Left Control Editor Pane */}
+        <div
+          className={`w-full md:w-[460px] lg:w-[500px] bg-white border-r border-zinc-200 flex flex-col h-full overflow-y-auto ${
+            mobileViewMode === 'preview' ? 'hidden md:flex' : 'flex'
+          }`}
+        >
+          {/* Editor Sub-Tabs */}
+          <div className="p-3 border-b border-zinc-200 bg-zinc-50 flex items-center gap-1 overflow-x-auto">
             <button
               onClick={() => setActiveTab('general')}
-              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'general' ? 'bg-slate-800 text-emerald-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeTab === 'general'
+                  ? 'bg-zinc-950 text-white shadow-xs'
+                  : 'text-zinc-600 hover:bg-zinc-200'
               }`}
             >
-              <Globe className="w-3.5 h-3.5" />
               General
             </button>
             <button
-              onClick={() => setActiveTab('theme')}
-              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'theme' ? 'bg-slate-800 text-emerald-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
+              onClick={() => setActiveTab('branding')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeTab === 'branding'
+                  ? 'bg-zinc-950 text-white shadow-xs'
+                  : 'text-zinc-600 hover:bg-zinc-200'
               }`}
             >
-              <Palette className="w-3.5 h-3.5" />
-              Theme
+              Branding
             </button>
             <button
               onClick={() => setActiveTab('slider')}
-              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'slider' ? 'bg-slate-800 text-emerald-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeTab === 'slider'
+                  ? 'bg-zinc-950 text-white shadow-xs'
+                  : 'text-zinc-600 hover:bg-zinc-200'
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
-              Slider
+              Banner Slider
             </button>
             <button
-              onClick={() => setActiveTab('content')}
-              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'content' ? 'bg-slate-800 text-emerald-400 font-semibold shadow-sm' : 'text-slate-400 hover:text-white'
+              onClick={() => setActiveTab('type_specific')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                activeTab === 'type_specific'
+                  ? 'bg-zinc-950 text-white shadow-xs'
+                  : 'text-zinc-600 hover:bg-zinc-200'
               }`}
             >
-              {site.type === 'ecommerce' && <ShoppingBag className="w-3.5 h-3.5" />}
-              {site.type === 'portfolio' && <User className="w-3.5 h-3.5" />}
-              {site.type === 'single_product' && <Zap className="w-3.5 h-3.5" />}
-              {site.type === 'ecommerce' ? 'Products' : site.type === 'portfolio' ? 'Portfolio' : 'Product'}
+              Catalog / Content
             </button>
           </div>
 
-          {/* Tab Content Panels (Scrollable) */}
-          <div className="flex-1 overflow-y-auto p-5 space-y-6">
-            {/* GENERAL TAB */}
+          {/* Form Content */}
+          <div className="p-5 space-y-5 flex-1 overflow-y-auto">
             {activeTab === 'general' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Site / Company Name
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    Website Name
                   </label>
                   <input
                     type="text"
                     value={site.name}
-                    onChange={(e) => updateField('name', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    onChange={(e) => updateSiteField('name', e.target.value)}
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
                   />
-                  <span className="text-[11px] text-slate-400 mt-1 block">
-                    Becomes page &lt;title&gt; and primary branding heading.
-                  </span>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Custom Subdomain Slug
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    Subdomain Slug (*.dominal.in)
                   </label>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center">
                     <input
                       type="text"
                       value={site.slug}
-                      onChange={(e) => updateField('slug', e.target.value)}
-                      className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      onChange={(e) =>
+                        updateSiteField(
+                          'slug',
+                          e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                        )
+                      }
+                      className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
                     />
                   </div>
-                  <span className="text-[11px] text-emerald-400 font-mono mt-1 block">
-                    &rarr; https://{site.slug}.dominal.in
-                  </span>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center justify-between">
-                    <span>WhatsApp Number (Required)</span>
-                    <a
-                      href={`https://wa.me/${site.whatsappNumber.replace(/[^0-9]/g, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-emerald-400 text-[11px] flex items-center gap-1 hover:underline"
-                    >
-                      <MessageCircle className="w-3 h-3" /> Test Link
-                    </a>
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    WhatsApp Number (with Country Code)
                   </label>
-                  <input
-                    type="text"
-                    value={site.whatsappNumber}
-                    onChange={(e) => updateField('whatsappNumber', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="919876543210"
-                  />
-                  <span className="text-[11px] text-slate-400 mt-1 block">
-                    Country code + mobile number without "+" or spaces.
-                  </span>
+                  <div className="relative">
+                    <MessageCircle className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={site.whatsappNumber}
+                      onChange={(e) => updateSiteField('whatsappNumber', e.target.value)}
+                      placeholder="919876543210"
+                      className="w-full pl-10 pr-4 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
+                    />
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Default WhatsApp Message Template
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    Default WhatsApp Message Pattern
                   </label>
                   <textarea
-                    rows={2}
+                    rows={3}
                     value={site.defaultWhatsappMessage || ''}
-                    onChange={(e) => updateField('defaultWhatsappMessage', e.target.value)}
-                    placeholder="Hi {site_name}, I want to order {item}!"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    onChange={(e) =>
+                      updateSiteField('defaultWhatsappMessage', e.target.value)
+                    }
+                    placeholder="Hi! I am interested in ordering {item}."
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-medium text-zinc-950 focus:ring-2 focus:ring-zinc-950"
                   />
-                  <span className="text-[11px] text-slate-400 mt-0.5 block">
-                    Use <code className="text-emerald-400">{'{item}'}</code> as placeholder for product name.
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    Logo Image URL (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={site.logoUrl || ''}
-                    onChange={(e) => updateField('logoUrl', e.target.value)}
-                    placeholder="https://..."
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  {site.logoUrl && (
-                    <div className="mt-2 flex items-center gap-2 p-2 bg-slate-950 rounded-xl border border-slate-800">
-                      <img src={site.logoUrl} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
-                      <span className="text-[11px] text-slate-400 truncate">{site.logoUrl}</span>
-                    </div>
-                  )}
+                  <p className="text-[10px] text-zinc-500 font-medium mt-1">
+                    Use <code className="text-zinc-950 font-bold font-mono">&#123;item&#125;</code> as placeholder for product name.
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* THEME & BRANDING TAB */}
-            {activeTab === 'theme' && (
-              <div className="space-y-6">
+            {activeTab === 'branding' && (
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                    Primary Accent Color
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    Brand Logo URL
                   </label>
-                  <div className="grid grid-cols-4 gap-2 mb-3">
+                  <input
+                    type="url"
+                    value={site.logoUrl || ''}
+                    onChange={(e) => updateSiteField('logoUrl', e.target.value)}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-medium text-zinc-950 focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-900 mb-1.5">
+                    Theme Color Preset
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
                     {THEME_PRESETS.map((preset) => (
                       <button
-                        key={preset.hex}
+                        key={preset.name}
                         type="button"
-                        onClick={() => updateField('themeColor', preset.hex)}
-                        className={`p-2 rounded-xl border flex flex-col items-center gap-1.5 transition-all ${
+                        onClick={() => updateSiteField('themeColor', preset.hex)}
+                        className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold transition-all ${
                           site.themeColor === preset.hex
-                            ? 'border-white bg-slate-800'
-                            : 'border-slate-800 hover:border-slate-700 bg-slate-950'
+                            ? 'border-zinc-950 bg-zinc-100 shadow-xs ring-1 ring-zinc-950'
+                            : 'border-zinc-200 bg-white hover:border-zinc-300'
                         }`}
                       >
                         <span
-                          className="w-6 h-6 rounded-full shadow-inner ring-1 ring-white/10"
+                          className="w-3.5 h-3.5 rounded-full border border-zinc-300"
                           style={{ backgroundColor: preset.hex }}
                         />
-                        <span className="text-[10px] text-slate-300 truncate w-full text-center">
-                          {preset.name}
-                        </span>
+                        <span className="truncate text-zinc-950">{preset.name}</span>
                       </button>
                     ))}
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-2">
-                    <input
-                      type="color"
-                      value={site.themeColor}
-                      onChange={(e) => updateField('themeColor', e.target.value)}
-                      className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0 p-0"
-                    />
-                    <input
-                      type="text"
-                      value={site.themeColor}
-                      onChange={(e) => updateField('themeColor', e.target.value)}
-                      className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white font-mono"
-                    />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
-                    Google Font Family
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    Typography Font Family
                   </label>
-                  <div className="space-y-2">
-                    {FONTS.map((f) => (
-                      <div
-                        key={f}
-                        onClick={() => updateField('fontFamily', f)}
-                        className={`p-3 rounded-xl border cursor-pointer flex items-center justify-between transition-all ${
-                          site.fontFamily === f
-                            ? 'bg-emerald-500/10 border-emerald-500 text-white'
-                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                        }`}
-                      >
-                        <span className="text-xs font-medium" style={{ fontFamily: f }}>
-                          {f} — Preview Clean Typography
-                        </span>
-                        {site.fontFamily === f && <Check className="w-4 h-4 text-emerald-400" />}
-                      </div>
+                  <select
+                    value={site.fontFamily || 'Plus Jakarta Sans'}
+                    onChange={(e) =>
+                      updateSiteField('fontFamily', e.target.value as any)
+                    }
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-bold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
+                  >
+                    {FONTS.map((font) => (
+                      <option key={font} value={font}>
+                        {font}
+                      </option>
                     ))}
-                  </div>
+                  </select>
                 </div>
               </div>
             )}
 
-            {/* BANNER SLIDER TAB */}
             {activeTab === 'slider' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                    Top Rotating Banner Slides
-                  </label>
+                  <h4 className="text-xs font-bold text-zinc-900">Hero Banner Slides</h4>
                   <button
-                    onClick={addSlide}
-                    className="py-1 px-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all"
+                    type="button"
+                    onClick={() => {
+                      const newSlide: BannerSlide = {
+                        id: `slide-${Date.now()}`,
+                        imageUrl: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=1600&auto=format&fit=crop&q=80',
+                        title: 'New Season Collection',
+                        subtitle: 'Premium handcrafted quality delivered to your doorstep.',
+                        ctaText: 'Shop via WhatsApp',
+                      };
+                      updateSiteField('bannerSlider', [...(site.bannerSlider || []), newSlide]);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Add Slide
+                    <span>Add Slide</span>
                   </button>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-300">Auto-Rotate Interval</span>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min="2"
-                      max="10"
-                      value={site.sliderAutoRotateSeconds || 4}
-                      onChange={(e) => updateField('sliderAutoRotateSeconds', parseInt(e.target.value))}
-                      className="w-24 accent-emerald-500"
-                    />
-                    <span className="text-xs font-mono text-emerald-400">
-                      {site.sliderAutoRotateSeconds || 4}s
-                    </span>
-                  </div>
-                </div>
-
-                {/* Slides List */}
-                <div className="space-y-3">
-                  {(site.bannerSlider || []).map((slide, idx) => (
-                    <div key={slide.id || idx} className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-300">Slide #{idx + 1}</span>
-                        {(site.bannerSlider?.length || 0) > 1 && (
-                          <button
-                            onClick={() => removeSlide(idx)}
-                            className="text-slate-400 hover:text-red-400 p-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-
-                      <input
-                        type="text"
-                        placeholder="Image URL"
-                        value={slide.imageUrl}
-                        onChange={(e) => updateSlide(idx, 'imageUrl', e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500"
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="Main Headline"
-                        value={slide.title || ''}
-                        onChange={(e) => updateSlide(idx, 'title', e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500"
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="Subtitle / Promotion text"
-                        value={slide.subtitle || ''}
-                        onChange={(e) => updateSlide(idx, 'subtitle', e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500"
-                      />
-
-                      <input
-                        type="text"
-                        placeholder="CTA Button Label"
-                        value={slide.ctaText || ''}
-                        onChange={(e) => updateSlide(idx, 'ctaText', e.target.value)}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* CONTENT TAB (TEMPLATE SPECIFIC) */}
-            {activeTab === 'content' && (
-              <div className="space-y-4">
-                {/* 1. E-COMMERCE PRODUCTS */}
-                {site.type === 'ecommerce' && (
-                  <div className="space-y-4">
+                {site.bannerSlider?.map((slide, index) => (
+                  <div key={slide.id} className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                        Products ({site.products?.length || 0})
-                      </label>
+                      <span className="text-xs font-bold text-zinc-900">Slide #{index + 1}</span>
                       <button
-                        onClick={addProduct}
-                        className="py-1 px-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all"
+                        type="button"
+                        onClick={() => {
+                          const updated = site.bannerSlider?.filter((s) => s.id !== slide.id);
+                          updateSiteField('bannerSlider', updated);
+                        }}
+                        className="text-red-600 hover:text-red-800 p-1"
                       >
-                        <Plus className="w-3.5 h-3.5" />
-                        Add Product
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
-                    <div className="space-y-3">
-                      {(site.products || []).map((prod, idx) => (
-                        <div key={prod.id || idx} className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-white">Item #{idx + 1}</span>
-                            <button
-                              onClick={() => removeProduct(idx)}
-                              className="text-slate-400 hover:text-red-400 p-1"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                    <input
+                      type="url"
+                      value={slide.imageUrl}
+                      onChange={(e) => {
+                        const updated = [...(site.bannerSlider || [])];
+                        updated[index].imageUrl = e.target.value;
+                        updateSiteField('bannerSlider', updated);
+                      }}
+                      placeholder="Image URL..."
+                      className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-medium"
+                    />
 
-                          <div className="grid grid-cols-2 gap-2">
-                            <input
-                              type="text"
-                              placeholder="Product Name"
-                              value={prod.name}
-                              onChange={(e) => updateProduct(idx, 'name', e.target.value)}
-                              className="col-span-2 px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
-                            />
-                            <div className="flex gap-1">
-                              <input
-                                type="text"
-                                placeholder="₹"
-                                value={prod.currency || '₹'}
-                                onChange={(e) => updateProduct(idx, 'currency', e.target.value)}
-                                className="w-10 px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white text-center"
-                              />
-                              <input
-                                type="text"
-                                placeholder="Price"
-                                value={prod.price}
-                                onChange={(e) => updateProduct(idx, 'price', e.target.value)}
-                                className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
-                              />
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="Badge (e.g. Best Seller)"
-                              value={prod.badge || ''}
-                              onChange={(e) => updateProduct(idx, 'badge', e.target.value)}
-                              className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
-                            />
-                          </div>
+                    <input
+                      type="text"
+                      value={slide.title}
+                      onChange={(e) => {
+                        const updated = [...(site.bannerSlider || [])];
+                        updated[index].title = e.target.value;
+                        updateSiteField('bannerSlider', updated);
+                      }}
+                      placeholder="Slide Title..."
+                      className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
 
+            {activeTab === 'type_specific' && (
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">
+                  Product / Catalog Manager
+                </h4>
+                <p className="text-xs text-zinc-500 font-medium">
+                  Manage products, prices and badges. Changes update in the live preview instantaneously.
+                </p>
+
+                {site.type === 'ecommerce' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-900">
+                        Products ({site.products?.length || 0})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newProd: ProductItem = {
+                            id: `prod-${Date.now()}`,
+                            name: 'New Product Item',
+                            price: '1,999',
+                            currency: '₹',
+                            description: 'High quality product material with fast shipping.',
+                            imageUrl: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&auto=format&fit=crop&q=80',
+                            badge: 'New',
+                            inStock: true,
+                          };
+                          updateSiteField('products', [...(site.products || []), newProd]);
+                        }}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Product</span>
+                      </button>
+                    </div>
+
+                    {site.products?.map((prod, index) => (
+                      <div
+                        key={prod.id}
+                        className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-zinc-950">{prod.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = site.products?.filter((p) => p.id !== prod.id);
+                              updateSiteField('products', updated);
+                            }}
+                            className="text-red-600 hover:text-red-800 p-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
                           <input
                             type="text"
-                            placeholder="Image URL"
-                            value={prod.imageUrl}
-                            onChange={(e) => updateProduct(idx, 'imageUrl', e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
+                            value={prod.name}
+                            onChange={(e) => {
+                              const updated = [...(site.products || [])];
+                              updated[index].name = e.target.value;
+                              updateSiteField('products', updated);
+                            }}
+                            placeholder="Name..."
+                            className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
                           />
-
-                          <textarea
-                            rows={2}
-                            placeholder="Description"
-                            value={prod.description}
-                            onChange={(e) => updateProduct(idx, 'description', e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
+                          <input
+                            type="text"
+                            value={prod.price}
+                            onChange={(e) => {
+                              const updated = [...(site.products || [])];
+                              updated[index].price = e.target.value;
+                              updateSiteField('products', updated);
+                            }}
+                            placeholder="Price (e.g. 2,999)..."
+                            className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
                           />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* 2. PORTFOLIO FIELDS */}
-                {site.type === 'portfolio' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Professional Role / Title
-                      </label>
-                      <input
-                        type="text"
-                        value={site.portfolioRoleTitle || ''}
-                        onChange={(e) => updateField('portfolioRoleTitle', e.target.value)}
-                        placeholder="e.g. Senior Visual Designer & Brand Strategist"
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Profile Avatar / Photo URL
-                      </label>
-                      <input
-                        type="text"
-                        value={site.portfolioAvatarUrl || ''}
-                        onChange={(e) => updateField('portfolioAvatarUrl', e.target.value)}
-                        placeholder="https://..."
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        About Me Bio
-                      </label>
-                      <textarea
-                        rows={4}
-                        value={site.portfolioAbout || ''}
-                        onChange={(e) => updateField('portfolioAbout', e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
-                      />
-                    </div>
-
-                    {/* Projects Gallery */}
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
-                          Projects Showcase
-                        </label>
-                        <button
-                          onClick={() => {
-                            const newProj: PortfolioProject = {
-                              id: `proj-${Date.now()}`,
-                              title: 'New Showcase Project',
-                              description: 'Case study delivering outstanding client results.',
-                              imageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80',
-                              tags: ['Strategy', 'UI/UX']
-                            };
-                            updateField('portfolioProjects', [...(site.portfolioProjects || []), newProj]);
-                          }}
-                          className="py-1 px-2.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          Add Project
-                        </button>
                       </div>
-
-                      <div className="space-y-3">
-                        {(site.portfolioProjects || []).map((proj, pIdx) => (
-                          <div key={proj.id || pIdx} className="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-white">Project #{pIdx + 1}</span>
-                              <button
-                                onClick={() => {
-                                  const updated = [...(site.portfolioProjects || [])];
-                                  updated.splice(pIdx, 1);
-                                  updateField('portfolioProjects', updated);
-                                }}
-                                className="text-slate-400 hover:text-red-400 p-1"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder="Project Title"
-                              value={proj.title}
-                              onChange={(e) => {
-                                const updated = [...(site.portfolioProjects || [])];
-                                updated[pIdx].title = e.target.value;
-                                updateField('portfolioProjects', updated);
-                              }}
-                              className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
-                            />
-                            <input
-                              type="text"
-                              placeholder="Image URL"
-                              value={proj.imageUrl}
-                              onChange={(e) => {
-                                const updated = [...(site.portfolioProjects || [])];
-                                updated[pIdx].imageUrl = e.target.value;
-                                updateField('portfolioProjects', updated);
-                              }}
-                              className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
-                            />
-                            <textarea
-                              rows={2}
-                              placeholder="Description"
-                              value={proj.description}
-                              onChange={(e) => {
-                                const updated = [...(site.portfolioProjects || [])];
-                                updated[pIdx].description = e.target.value;
-                                updateField('portfolioProjects', updated);
-                              }}
-                              className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 3. SINGLE PRODUCT SPECIFICS */}
-                {site.type === 'single_product' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Hero Product Title
-                      </label>
-                      <input
-                        type="text"
-                        value={site.singleProduct?.productName || ''}
-                        onChange={(e) =>
-                          updateField('singleProduct', {
-                            ...site.singleProduct,
-                            productName: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Tagline / Catchphrase
-                      </label>
-                      <input
-                        type="text"
-                        value={site.singleProduct?.tagline || ''}
-                        onChange={(e) =>
-                          updateField('singleProduct', {
-                            ...site.singleProduct,
-                            tagline: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">
-                          Regular Price (Strikethrough)
-                        </label>
-                        <input
-                          type="text"
-                          value={site.singleProduct?.regularPrice || ''}
-                          onChange={(e) =>
-                            updateField('singleProduct', {
-                              ...site.singleProduct,
-                              regularPrice: e.target.value,
-                            })
-                          }
-                          placeholder="4,999"
-                          className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">
-                          Sale Price (Active)
-                        </label>
-                        <input
-                          type="text"
-                          value={site.singleProduct?.salePrice || ''}
-                          onChange={(e) =>
-                            updateField('singleProduct', {
-                              ...site.singleProduct,
-                              salePrice: e.target.value,
-                            })
-                          }
-                          placeholder="2,999"
-                          className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-medium text-slate-300 mb-1">
-                        Full Product Story / Description
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={site.singleProduct?.description || ''}
-                        onChange={(e) =>
-                          updateField('singleProduct', {
-                            ...site.singleProduct,
-                            description: e.target.value,
-                          })
-                        }
-                        className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white"
-                      />
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>
             )}
           </div>
-        </aside>
+        </div>
 
-        {/* Right Canvas: Live Sandboxed Iframe Preview */}
-        <section className="flex-1 bg-slate-950 flex flex-col items-center justify-center p-4 overflow-hidden relative">
-          <div
-            className={`h-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 flex flex-col ${
-              viewport === 'desktop'
-                ? 'w-full'
-                : viewport === 'tablet'
-                ? 'w-[768px]'
-                : 'w-[375px]'
-            }`}
-          >
-            {/* Iframe top header bar */}
-            <div className="h-9 bg-slate-900 border-b border-slate-800 px-3 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
-              </div>
-              <div className="text-[11px] font-mono text-slate-400 bg-slate-950/80 px-3 py-0.5 rounded-full border border-slate-800 flex items-center gap-1.5">
-                <Globe className="w-3 h-3 text-emerald-400" />
-                <span>https://{site.slug}.dominal.in</span>
-              </div>
-              <a
-                href={`/api/sites/${site.id}/preview`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-slate-400 hover:text-white p-1"
-                title="Open in new window"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-
-            {/* Sandboxed Live Preview Iframe */}
-            <div className="flex-1 bg-white relative">
-              <iframe
-                key={previewKey}
-                ref={iframeRef}
-                src={`/api/sites/${site.id}/preview`}
-                className="w-full h-full border-none"
-                title="Live Builder Preview"
-              />
-            </div>
+        {/* Right Sandbox Live Iframe Preview */}
+        <div
+          className={`flex-1 bg-zinc-200 p-4 md:p-6 flex flex-col items-center justify-center relative overflow-hidden ${
+            mobileViewMode === 'editor' ? 'hidden md:flex' : 'flex'
+          }`}
+        >
+          <div className="w-full max-w-6xl h-full flex flex-col items-center justify-center">
+            <iframe
+              ref={iframeRef}
+              src={`/api/sites/${site.id}/preview`}
+              className={`transition-all duration-300 bg-white ${getDeviceClass()}`}
+              title="Live Website Sandbox Preview"
+            />
           </div>
-        </section>
+        </div>
       </div>
 
-      {/* DEPLOYMENT PIPELINE MODAL */}
-      {deployModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl relative">
-            <button
-              onClick={() => setDeployModalOpen(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* Mobile Bottom Taskbar for Switching Editor/Preview */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-zinc-200 px-4 py-2 shadow-lg">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <button
+            onClick={() => setMobileViewMode('editor')}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-colors ${
+              mobileViewMode === 'editor'
+                ? 'bg-zinc-950 text-white font-bold'
+                : 'text-zinc-700 hover:bg-zinc-100'
+            }`}
+          >
+            <Edit3 className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px]">Edit Form</span>
+          </button>
 
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <Rocket className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">Publishing Customer Site</h3>
-                <p className="text-xs text-slate-400 font-mono">{site.slug}.dominal.in</p>
-              </div>
-            </div>
+          <button
+            onClick={() => setMobileViewMode('preview')}
+            className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-colors ${
+              mobileViewMode === 'preview'
+                ? 'bg-zinc-950 text-white font-bold'
+                : 'text-zinc-700 hover:bg-zinc-100'
+            }`}
+          >
+            <Eye className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px]">Live Preview</span>
+          </button>
 
-            {/* Pipeline progress steps */}
-            <div className="mt-4 space-y-3 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4">
-              <div className="flex items-center gap-3 text-xs">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px]">1</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-white">GitHub Repo &amp; Commit</div>
-                  <div className="text-[11px] text-slate-400">Creates {site.slug} repo &amp; pushes pure index.html</div>
-                </div>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              </div>
+          <button
+            onClick={handlePublish}
+            className="flex flex-col items-center justify-center py-1.5 rounded-xl bg-emerald-600 text-white font-bold shadow-xs active:scale-95"
+          >
+            <Rocket className="w-4 h-4 mb-0.5" />
+            <span className="text-[10px]">Publish</span>
+          </button>
+        </div>
+      </nav>
 
-              <div className="flex items-center gap-3 text-xs">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px]">2</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-white">Vercel Project &amp; Custom Domain</div>
-                  <div className="text-[11px] text-slate-400">Links repo &amp; assigns {site.slug}.dominal.in</div>
-                </div>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+      {/* Publish Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 drawer-backdrop" onClick={() => !deploying && setShowPublishModal(false)} />
+          <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl border border-zinc-200 shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div className="flex items-center gap-2">
+                <Rocket className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-extrabold text-base text-zinc-950">Publishing Website</h3>
               </div>
-
-              <div className="flex items-center gap-3 text-xs">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px]">3</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-white">Cloudflare CNAME Provisioning</div>
-                  <div className="text-[11px] text-slate-400">DNS CNAME record (Proxy: OFF / Grey Cloud)</div>
-                </div>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              </div>
-
-              <div className="flex items-center gap-3 text-xs">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-[10px]">4</span>
-                <div className="flex-1">
-                  <div className="font-semibold text-white">Health Check &amp; Status Polling</div>
-                  <div className="text-[11px] text-slate-400">Verifying live availability</div>
-                </div>
-                {deploying ? (
-                  <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                )}
-              </div>
-            </div>
-
-            {/* Success message or error */}
-            {deployError ? (
-              <div className="mt-4 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                <div className="font-bold flex items-center gap-1.5 mb-1">
-                  <AlertCircle className="w-4 h-4" /> Pipeline Failure
-                </div>
-                <p>{deployError}</p>
-                <div className="mt-3 flex justify-end">
-                  <button
-                    onClick={handlePublish}
-                    className="py-1.5 px-3 bg-red-500 text-white rounded-lg text-xs font-semibold hover:bg-red-600"
-                  >
-                    Retry Pipeline
-                  </button>
-                </div>
-              </div>
-            ) : !deploying ? (
-              <div className="mt-5 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-                <div className="text-emerald-400 text-sm font-bold flex items-center justify-center gap-1.5 mb-1">
-                  <CheckCircle2 className="w-4 h-4" /> Published Successfully!
-                </div>
-                <p className="text-xs text-slate-300 mb-3 font-mono">
-                  https://{site.slug}.dominal.in
-                </p>
-                <a
-                  href={`https://${site.slug}.dominal.in`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 py-2 px-5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-lg shadow-emerald-500/20"
+              {!deploying && (
+                <button
+                  onClick={() => setShowPublishModal(false)}
+                  className="p-1.5 rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-950"
                 >
-                  <span>Open Live Website</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            ) : null}
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
-            {/* Execution Logs */}
-            <div className="mt-4">
-              <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
-                Pipeline Logs
-              </span>
-              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300 max-h-36 overflow-y-auto space-y-1">
-                {(site.deploymentLogs || []).map((l, i) => (
-                  <div key={i} className="flex gap-2">
-                    <span className="text-slate-400">[{l.step}]</span>
-                    <span className={l.status === 'failed' ? 'text-red-400' : l.status === 'success' ? 'text-emerald-400' : 'text-slate-300'}>
-                      {l.message}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div className="bg-zinc-950 rounded-xl p-4 font-mono text-xs text-zinc-300 max-h-60 overflow-y-auto space-y-2">
+              {deploymentLogs.map((log, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-zinc-500 text-[10px]">
+                    {new Date(log.timestamp).toLocaleTimeString()}
+                  </span>
+                  <span className="font-bold uppercase text-[10px] text-emerald-400">
+                    [{log.step}]
+                  </span>
+                  <span>{log.message}</span>
+                </div>
+              ))}
+
+              {deploying && (
+                <div className="flex items-center gap-2 text-amber-400 pt-2 border-t border-zinc-800">
+                  <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                  <span>Processing GitHub, Vercel &amp; Cloudflare...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowPublishModal(false)}
+                disabled={deploying}
+                className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all disabled:opacity-50"
+              >
+                {deploying ? 'Deploying...' : 'Done'}
+              </button>
             </div>
           </div>
         </div>
