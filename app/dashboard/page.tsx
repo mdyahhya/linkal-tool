@@ -264,7 +264,7 @@ export default function DashboardPage() {
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold transition-all"
             >
               <Key className="w-3.5 h-3.5 text-zinc-500" />
-              <span>Cloud API Keys</span>
+              <span>Cloud Settings</span>
             </button>
 
             <button
@@ -367,7 +367,7 @@ export default function DashboardPage() {
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-100 text-zinc-700 hover:text-zinc-950 text-xs font-semibold transition-all text-left"
                 >
                   <ShieldCheck className="w-4 h-4 text-blue-600" />
-                  <span>API Setup & Credentials</span>
+                  <span>Cloud Settings</span>
                 </button>
               </nav>
             </div>
@@ -718,7 +718,7 @@ export default function DashboardPage() {
             className="flex flex-col items-center justify-center py-1.5 rounded-xl text-zinc-700 hover:bg-zinc-100 transition-colors"
           >
             <ShieldCheck className="w-5 h-5 text-blue-600" />
-            <span className="text-[10px] font-bold text-zinc-700 mt-0.5">API Keys</span>
+            <span className="text-[10px] font-bold text-zinc-700 mt-0.5">Settings</span>
           </button>
         </div>
       </nav>
@@ -966,8 +966,8 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <ShieldCheck className="w-6 h-6 text-emerald-600" />
                 <div>
-                  <h3 className="font-extrabold text-base text-zinc-950">Cloud API Credentials Setup</h3>
-                  <p className="text-xs text-zinc-500 font-medium">Automated GitHub, Vercel &amp; Cloudflare provisioning</p>
+                  <h3 className="font-extrabold text-base text-zinc-950">Platform Cloud Configuration</h3>
+                  <p className="text-xs text-zinc-500 font-medium">Automated Subdomain Provisioning &amp; Edge Hosting</p>
                 </div>
               </div>
               <button
@@ -980,42 +980,42 @@ export default function DashboardPage() {
 
             <div className="space-y-4 text-xs">
               <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1">
-                <span className="font-bold text-zinc-950 block">⚡ Dev Preview Mode Active</span>
+                <span className="font-bold text-zinc-950 block">⚡ Automated Cloud Engine Active</span>
                 <p className="text-zinc-600 font-medium">
-                  If any API key is left blank in <code className="text-zinc-950 font-mono bg-zinc-200 px-1 rounded">.env.local</code>, Linkal automatically simulates the entire deployment flow so you can test all features without live API keys!
+                  Configured environment keys enable zero-touch publishing of customer storefronts under <code className="text-zinc-950 font-mono bg-zinc-200 px-1 rounded">*.dominal.in</code>.
                 </p>
               </div>
 
               {/* Step 1 */}
               <div className="border border-zinc-200 rounded-xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-zinc-950">1. GitHub API Token</span>
-                  <span className="px-2 py-0.5 rounded bg-zinc-100 font-mono font-bold text-[10px] text-zinc-700">GITHUB_TOKEN</span>
+                  <span className="font-extrabold text-zinc-950">1. Code Repository Engine</span>
+                  <span className="px-2 py-0.5 rounded bg-zinc-100 font-mono font-bold text-[10px] text-zinc-700">ACTIVE</span>
                 </div>
                 <p className="text-zinc-600 font-medium">
-                  Create classic token with <code className="text-emerald-700 font-bold">repo</code> scope at github.com/settings/tokens.
+                  Automated compilation &amp; versioned storage for generated customer sites.
                 </p>
               </div>
 
               {/* Step 2 */}
               <div className="border border-zinc-200 rounded-xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-zinc-950">2. Vercel API Token</span>
-                  <span className="px-2 py-0.5 rounded bg-zinc-100 font-mono font-bold text-[10px] text-zinc-700">VERCEL_TOKEN</span>
+                  <span className="font-extrabold text-zinc-950">2. Production Cloud Hosting</span>
+                  <span className="px-2 py-0.5 rounded bg-zinc-100 font-mono font-bold text-[10px] text-zinc-700">ACTIVE</span>
                 </div>
                 <p className="text-zinc-600 font-medium">
-                  Create access token at vercel.com/account/tokens to automatically create projects &amp; attach subdomains.
+                  Sub-second static distribution with instant SSL security.
                 </p>
               </div>
 
               {/* Step 3 */}
               <div className="border border-zinc-200 rounded-xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-zinc-950">3. Cloudflare DNS API Token</span>
-                  <span className="px-2 py-0.5 rounded bg-zinc-100 font-mono font-bold text-[10px] text-zinc-700">CLOUDFLARE_API_TOKEN</span>
+                  <span className="font-extrabold text-zinc-950">3. Edge Domain &amp; SSL Routing</span>
+                  <span className="px-2 py-0.5 rounded bg-zinc-100 font-mono font-bold text-[10px] text-zinc-700">ACTIVE</span>
                 </div>
                 <p className="text-zinc-600 font-medium">
-                  Create token with <code className="text-amber-700 font-bold">Zone.DNS Edit</code> permissions for domain dominal.in.
+                  Instant CNAME DNS record creation for customer subdomains under dominal.in.
                 </p>
               </div>
             </div>

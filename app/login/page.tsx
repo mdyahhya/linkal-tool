@@ -2,12 +2,12 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Globe, Lock, Mail, ArrowRight, ShieldCheck, Sparkles, CheckCircle2, Zap } from 'lucide-react';
+import { Globe, Lock, Mail, ArrowRight, ShieldCheck, CheckCircle2, Zap } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('admin@linkal.in');
-  const [password, setPassword] = useState('linkal123');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,9 +45,9 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-zinc-900 text-white shadow-lg mb-4 ring-4 ring-zinc-100">
             <Globe className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Linkal SaaS Platform</h1>
-          <p className="text-xs text-zinc-500 font-medium mt-1">
-            Platform Owner Portal &bull; GitHub, Vercel &amp; Cloudflare Pipeline
+          <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Linkal Platform</h1>
+          <p className="text-xs text-zinc-500 font-semibold mt-1">
+            Platform Owner Portal &bull; High-Converting Storefront Builder Engine
           </p>
         </div>
 
@@ -58,8 +58,8 @@ export default function LoginPage() {
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>Admin Authentication</span>
             </div>
-            <p className="text-xs text-zinc-500">
-              Enter your owner credentials to manage and publish storefronts.
+            <p className="text-xs text-zinc-500 font-medium">
+              Enter your platform owner credentials to manage and publish storefronts.
             </p>
           </div>
 
@@ -120,29 +120,21 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Quick credentials helper */}
-          <div className="mt-6 pt-4 border-t border-zinc-100 text-center">
-            <p className="text-[11px] text-zinc-500 flex items-center justify-center gap-1.5 font-medium">
-              <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
-              Default Login: <code className="text-zinc-950 bg-zinc-100 px-1.5 py-0.5 rounded font-mono font-semibold">admin@linkal.in</code> / <code className="text-zinc-950 bg-zinc-100 px-1.5 py-0.5 rounded font-mono font-semibold">linkal123</code>
-            </p>
-          </div>
         </div>
 
-        {/* Features badges */}
-        <div className="mt-6 grid grid-cols-3 gap-2 text-center text-[11px] text-zinc-500">
+        {/* Features highlights */}
+        <div className="mt-6 grid grid-cols-3 gap-2 text-center text-[11px] text-zinc-500 font-semibold">
           <div className="flex items-center justify-center gap-1 bg-white p-2 rounded-lg border border-zinc-200 shadow-xs">
             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            <span>GitHub API</span>
+            <span>Instant Web Deploy</span>
           </div>
           <div className="flex items-center justify-center gap-1 bg-white p-2 rounded-lg border border-zinc-200 shadow-xs">
             <CheckCircle2 className="w-3 h-3 text-blue-600" />
-            <span>Vercel Deploy</span>
+            <span>WhatsApp CTAs</span>
           </div>
           <div className="flex items-center justify-center gap-1 bg-white p-2 rounded-lg border border-zinc-200 shadow-xs">
             <CheckCircle2 className="w-3 h-3 text-amber-600" />
-            <span>Cloudflare DNS</span>
+            <span>Pure Static HTML</span>
           </div>
         </div>
       </div>
