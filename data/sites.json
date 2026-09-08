@@ -1,5 +1,41 @@
 [
   {
+    "id": "site-1788899439940",
+    "name": "Solapur Shop",
+    "slug": "solapur-shop",
+    "type": "ecommerce",
+    "status": "draft",
+    "whatsappNumber": "918766882442",
+    "defaultWhatsappMessage": "Hi Solapur Shop, I saw your website and would like to place an order!",
+    "logoUrl": "https://cdn.jsdelivr.net/gh/mdyahhya/linkal-tool@main/public/uploads/1788899419633-1000178938.jpg",
+    "themeColor": "#059669",
+    "fontFamily": "Inter",
+    "bannerSlider": [
+      {
+        "id": "slide-1",
+        "imageUrl": "https://cdn.jsdelivr.net/gh/mdyahhya/linkal-tool@main/public/uploads/1788899409468-1000223949.jpg",
+        "title": "Welcome to Solapur Shop",
+        "subtitle": "Explore our exclusive offerings and order directly on WhatsApp with instant support.",
+        "ctaText": "Chat on WhatsApp"
+      }
+    ],
+    "sliderAutoRotateSeconds": 4,
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "Signature Collection Item",
+        "price": "5000",
+        "currency": "₹",
+        "description": "Premium quality handcrafted product with instant doorstep delivery.",
+        "imageUrl": "https://cdn.jsdelivr.net/gh/mdyahhya/linkal-tool@main/public/uploads/1788899435555-1000157021.jpg",
+        "badge": "Featured",
+        "inStock": true
+      }
+    ],
+    "createdAt": "2026-09-08T20:30:39.940Z",
+    "updatedAt": "2026-09-08T20:30:39.940Z"
+  },
+  {
     "id": "demo-portfolio",
     "name": "Kabir Verma — Visual & Product Designer",
     "slug": "kabir-portfolio",
