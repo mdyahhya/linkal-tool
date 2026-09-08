@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -37,6 +37,17 @@ import {
   Globe as LayoutGrid,
 } from 'lucide-react';
 import { SiteData, BannerSlide, ProductItem, PortfolioProject, PortfolioSkill } from '@/types/site';
+import { generateStaticHtml } from '@/lib/generator';
+
+function Upload({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
 
 const THEME_PRESETS = [
   { name: 'Emerald', hex: '#059669' },
@@ -73,6 +84,7 @@ export default function BuilderPage() {
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [deploying, setDeploying] = useState(false);
   const [deploymentLogs, setDeploymentLogs] = useState<any[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -82,9 +94,32 @@ export default function BuilderPage() {
       try {
         setLoading(true);
         const res = await fetch(`/api/sites/${siteId}`);
-        if (!res.ok) throw new Error('Site not found');
-        const data = await res.json();
-        setSite(data.site);
+        if (res.ok) {
+          const data = await res.json();
+          setSite(data.site);
+          return;
+        }
+
+        // Fallback: check localStorage if server cold started
+        try {
+          const cached = localStorage.getItem('linkal_sites_history');
+          if (cached) {
+            const list: SiteData[] = JSON.parse(cached);
+            const found = list.find((s) => s.id === siteId);
+            if (found) {
+              setSite(found);
+              // Sync back to server
+              fetch(`/api/sites/${siteId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(found),
+              }).catch(console.error);
+              return;
+            }
+          }
+        } catch {}
+
+        throw new Error('Site not found');
       } catch (err) {
         console.error('Failed to load site:', err);
         router.push('/dashboard');
@@ -94,6 +129,51 @@ export default function BuilderPage() {
     }
     if (siteId) loadSite();
   }, [siteId, router]);
+
+  // Generate live preview HTML instantly on every state change
+  const previewHtml = useMemo(() => {
+    if (!site) return '';
+    return generateStaticHtml(site);
+  }, [site]);
+
+  // Image Upload Helper
+  const handleFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    onComplete: (url: string) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      // Immediate visual update in editor & live preview
+      onComplete(base64);
+
+      // Async upload to GitHub
+      try {
+        setUploadingImage(true);
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base64,
+            filename: file.name,
+            siteSlug: site?.slug,
+          }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          onComplete(data.url);
+        }
+      } catch (err) {
+        console.warn('Upload error, kept local preview:', err);
+      } finally {
+        setUploadingImage(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Handle Save Draft
   const handleSave = async () => {
@@ -108,6 +188,22 @@ export default function BuilderPage() {
       if (!res.ok) throw new Error('Failed to save site');
       const data = await res.json();
       setSite(data.site);
+
+      // Also backup to localStorage
+      try {
+        const local = localStorage.getItem('linkal_sites_history');
+        if (local) {
+          const list: SiteData[] = JSON.parse(local);
+          const idx = list.findIndex((s) => s.id === site.id);
+          if (idx >= 0) list[idx] = data.site;
+          else list.unshift(data.site);
+          localStorage.setItem('linkal_sites_history', JSON.stringify(list));
+        } else {
+          localStorage.setItem('linkal_sites_history', JSON.stringify([data.site]));
+        }
+      } catch {}
+
+      alert('Changes saved successfully!');
     } catch (err: any) {
       alert(err.message || 'Save failed');
     } finally {
@@ -129,7 +225,11 @@ export default function BuilderPage() {
         body: JSON.stringify(site),
       });
 
-      const res = await fetch(`/api/sites/${site.id}/publish`, { method: 'POST' });
+      const res = await fetch(`/api/sites/${site.id}/publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site }),
+      });
       const data = await res.json();
 
       if (!res.ok || !data.success) {
@@ -139,7 +239,7 @@ export default function BuilderPage() {
       setSite(data.site);
       setDeploymentLogs(data.site.deploymentLogs || []);
 
-      // Auto-redirect to My Sites on dashboard after publishing
+      // Auto-redirect to My Sites on dashboard
       setTimeout(() => {
         router.push(`/dashboard?published=${site.id}`);
       }, 1500);
@@ -150,10 +250,24 @@ export default function BuilderPage() {
     }
   };
 
-  // Update site helper
+  // Update site helper with instant state & local cache update
   const updateSiteField = <K extends keyof SiteData>(field: K, value: SiteData[K]) => {
     if (!site) return;
-    setSite({ ...site, [field]: value });
+    const updated = { ...site, [field]: value };
+    setSite(updated);
+
+    try {
+      const cached = localStorage.getItem('linkal_sites_history');
+      if (cached) {
+        const list: SiteData[] = JSON.parse(cached);
+        const idx = list.findIndex((s) => s.id === site.id);
+        if (idx >= 0) list[idx] = updated;
+        else list.unshift(updated);
+        localStorage.setItem('linkal_sites_history', JSON.stringify(list));
+      } else {
+        localStorage.setItem('linkal_sites_history', JSON.stringify([updated]));
+      }
+    } catch {}
   };
 
   const handleLogout = async () => {
@@ -201,7 +315,7 @@ export default function BuilderPage() {
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-bold text-zinc-700 hover:bg-zinc-100 transition-all"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Dashboard</span>
+            <span>My Sites</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -268,7 +382,7 @@ export default function BuilderPage() {
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-950 text-xs font-bold transition-all disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5 text-zinc-900" />
-            <span>{saving ? 'Saving...' : 'Save Draft'}</span>
+            <span>{saving ? 'Saving...' : 'Save Changes'}</span>
           </button>
 
           <button
@@ -293,8 +407,8 @@ export default function BuilderPage() {
                     <Globe className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <h3 className="font-extrabold text-sm text-zinc-950">Builder Navigation</h3>
-                    <p className="text-[11px] text-zinc-500 font-medium">Linkal Studio</p>
+                    <h3 className="font-extrabold text-sm text-zinc-950">Linkal Studio</h3>
+                    <p className="text-[11px] text-zinc-500 font-medium">Website Customizer</p>
                   </div>
                 </div>
                 <button
@@ -314,7 +428,7 @@ export default function BuilderPage() {
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-zinc-100 text-zinc-700 hover:text-zinc-950 text-xs font-bold transition-all text-left"
                 >
                   <LayoutGrid className="w-4 h-4 text-zinc-950" />
-                  <span>Dashboard Overview</span>
+                  <span>My Sites Overview</span>
                 </button>
 
                 <button
@@ -344,7 +458,7 @@ export default function BuilderPage() {
                   }`}
                 >
                   <Palette className="w-4 h-4 text-purple-600" />
-                  <span>Theme &amp; Typography</span>
+                  <span>Logo &amp; Theme Colors</span>
                 </button>
 
                 <button
@@ -359,7 +473,7 @@ export default function BuilderPage() {
                   }`}
                 >
                   <ImageIcon className="w-4 h-4 text-blue-600" />
-                  <span>Banner Slider Manager</span>
+                  <span>Hero Banner Images</span>
                 </button>
 
                 <button
@@ -374,7 +488,7 @@ export default function BuilderPage() {
                   }`}
                 >
                   <ShoppingBag className="w-4 h-4 text-emerald-600" />
-                  <span>Content &amp; Products</span>
+                  <span>Products &amp; Catalog</span>
                 </button>
               </nav>
             </div>
@@ -396,7 +510,7 @@ export default function BuilderPage() {
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0">
         {/* Left Control Editor Pane */}
         <div
-          className={`w-full md:w-[460px] lg:w-[500px] bg-white border-r border-zinc-200 flex flex-col h-full overflow-y-auto ${
+          className={`w-full md:w-[480px] lg:w-[520px] bg-white border-r border-zinc-200 flex flex-col h-full overflow-y-auto ${
             mobileViewMode === 'preview' ? 'hidden md:flex' : 'flex'
           }`}
         >
@@ -420,7 +534,7 @@ export default function BuilderPage() {
                   : 'text-zinc-600 hover:bg-zinc-200'
               }`}
             >
-              Branding
+              Logo &amp; Theme
             </button>
             <button
               onClick={() => setActiveTab('slider')}
@@ -430,7 +544,7 @@ export default function BuilderPage() {
                   : 'text-zinc-600 hover:bg-zinc-200'
               }`}
             >
-              Banner Slider
+              Banner Images
             </button>
             <button
               onClick={() => setActiveTab('type_specific')}
@@ -440,7 +554,7 @@ export default function BuilderPage() {
                   : 'text-zinc-600 hover:bg-zinc-200'
               }`}
             >
-              Catalog / Content
+              Products &amp; Items
             </button>
           </div>
 
@@ -458,30 +572,30 @@ export default function BuilderPage() {
                     onChange={(e) => updateSiteField('name', e.target.value)}
                     className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
                   />
+                  <p className="text-[10px] text-zinc-500 mt-1">Updates live across headers, titles, and WhatsApp links.</p>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-zinc-900 mb-1">
                     Subdomain Slug (*.dominal.in)
                   </label>
-                  <div className="flex items-center">
-                    <input
-                      type="text"
-                      value={site.slug}
-                      onChange={(e) =>
-                        updateSiteField(
-                          'slug',
-                          e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
-                        )
-                      }
-                      className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    value={site.slug}
+                    onChange={(e) =>
+                      updateSiteField(
+                        'slug',
+                        e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')
+                      )
+                    }
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
+                  />
+                  <p className="text-[10px] text-zinc-500 font-mono mt-1">Live URL: https://{site.slug}.dominal.in</p>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-zinc-900 mb-1">
-                    WhatsApp Number (with Country Code)
+                    WhatsApp Orders Phone Number (with Country Code)
                   </label>
                   <div className="relative">
                     <MessageCircle className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -493,6 +607,7 @@ export default function BuilderPage() {
                       className="w-full pl-10 pr-4 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
                     />
                   </div>
+                  <p className="text-[10px] text-zinc-500 mt-1">All customer &quot;Buy on WhatsApp&quot; buttons open direct chat with this phone.</p>
                 </div>
 
                 <div>
@@ -516,18 +631,45 @@ export default function BuilderPage() {
             )}
 
             {activeTab === 'branding' && (
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-zinc-900 mb-1">
-                    Brand Logo URL
+                  <label className="block text-xs font-bold text-zinc-900 mb-1.5">
+                    Brand Logo
                   </label>
-                  <input
-                    type="url"
-                    value={site.logoUrl || ''}
-                    onChange={(e) => updateSiteField('logoUrl', e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-medium text-zinc-950 focus:ring-2 focus:ring-zinc-950"
-                  />
+                  
+                  <div className="flex items-center gap-3 p-3 border border-zinc-200 rounded-xl bg-zinc-50">
+                    {site.logoUrl ? (
+                      <img
+                        src={site.logoUrl}
+                        alt="Logo"
+                        className="w-12 h-12 rounded-xl object-cover border border-zinc-300 bg-white"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-zinc-200 text-zinc-600 flex items-center justify-center font-bold text-xs">
+                        Logo
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 space-y-1.5">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-black text-white text-xs font-bold cursor-pointer transition-all shadow-xs">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload Logo File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleFileUpload(e, (url) => updateSiteField('logoUrl', url))}
+                        />
+                      </label>
+                      <input
+                        type="url"
+                        value={site.logoUrl || ''}
+                        onChange={(e) => updateSiteField('logoUrl', e.target.value)}
+                        placeholder="Or paste image URL..."
+                        className="w-full px-2.5 py-1 bg-white border border-zinc-300 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -580,7 +722,10 @@ export default function BuilderPage() {
             {activeTab === 'slider' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-zinc-900">Hero Banner Slides</h4>
+                  <div>
+                    <h4 className="text-xs font-bold text-zinc-900">Hero Banner Slides</h4>
+                    <p className="text-[11px] text-zinc-500 font-medium">Upload banner photos or paste URLs.</p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
@@ -601,9 +746,18 @@ export default function BuilderPage() {
                 </div>
 
                 {site.bannerSlider?.map((slide, index) => (
-                  <div key={slide.id} className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+                  <div key={slide.id} className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-zinc-900">Slide #{index + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-zinc-950">
+                          {index === 0 ? 'Slide #1 (Main Page Hero Banner)' : `Slide #${index + 1}`}
+                        </span>
+                        {index === 0 && (
+                          <span className="px-1.5 py-0.5 rounded bg-zinc-950 text-white font-mono text-[9px] font-bold">
+                            STARTING BANNER
+                          </span>
+                        )}
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
@@ -616,6 +770,31 @@ export default function BuilderPage() {
                       </button>
                     </div>
 
+                    {/* Banner Image Preview & Upload Button */}
+                    <div className="relative aspect-video rounded-lg overflow-hidden border border-zinc-300 bg-zinc-200">
+                      <img
+                        src={slide.imageUrl}
+                        alt="Banner Preview"
+                        className="w-full h-full object-cover"
+                      />
+                      <label className="absolute bottom-2 right-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-950/80 hover:bg-black text-white text-[10px] font-bold cursor-pointer transition-all shadow-sm">
+                        <Upload className="w-3 h-3" />
+                        <span>Upload Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            handleFileUpload(e, (url) => {
+                              const updated = [...(site.bannerSlider || [])];
+                              updated[index].imageUrl = url;
+                              updateSiteField('bannerSlider', updated);
+                            })
+                          }
+                        />
+                      </label>
+                    </div>
+
                     <input
                       type="url"
                       value={slide.imageUrl}
@@ -624,7 +803,7 @@ export default function BuilderPage() {
                         updated[index].imageUrl = e.target.value;
                         updateSiteField('bannerSlider', updated);
                       }}
-                      placeholder="Image URL..."
+                      placeholder="Or paste banner image URL..."
                       className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-medium"
                     />
 
@@ -639,6 +818,18 @@ export default function BuilderPage() {
                       placeholder="Slide Title..."
                       className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
                     />
+
+                    <input
+                      type="text"
+                      value={slide.subtitle}
+                      onChange={(e) => {
+                        const updated = [...(site.bannerSlider || [])];
+                        updated[index].subtitle = e.target.value;
+                        updateSiteField('bannerSlider', updated);
+                      }}
+                      placeholder="Slide Subtitle / Description..."
+                      className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-700 font-medium"
+                    />
                   </div>
                 ))}
               </div>
@@ -647,10 +838,10 @@ export default function BuilderPage() {
             {activeTab === 'type_specific' && (
               <div className="space-y-4">
                 <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">
-                  Product / Catalog Manager
+                  Products &amp; Catalog
                 </h4>
                 <p className="text-xs text-zinc-500 font-medium">
-                  Manage products, prices and badges. Changes update in the live preview instantaneously.
+                  Upload images, set prices and names. Live preview reflects edits immediately.
                 </p>
 
                 {site.type === 'ecommerce' && (
@@ -667,7 +858,7 @@ export default function BuilderPage() {
                             name: 'New Product Item',
                             price: '1,999',
                             currency: '₹',
-                            description: 'High quality product material with fast shipping.',
+                            description: 'High quality product material with fast express shipping.',
                             imageUrl: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&auto=format&fit=crop&q=80',
                             badge: 'New',
                             inStock: true,
@@ -684,7 +875,7 @@ export default function BuilderPage() {
                     {site.products?.map((prod, index) => (
                       <div
                         key={prod.id}
-                        className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2"
+                        className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2.5"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold text-zinc-950">{prod.name}</span>
@@ -698,6 +889,44 @@ export default function BuilderPage() {
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
+                        </div>
+
+                        {/* Product Image & Upload Button */}
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={prod.imageUrl}
+                            alt={prod.name}
+                            className="w-16 h-16 rounded-xl object-cover border border-zinc-300 bg-white shrink-0"
+                          />
+                          <div className="flex-1 space-y-1.5">
+                            <label className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-950 hover:bg-black text-white text-[10px] font-bold cursor-pointer transition-all">
+                              <Upload className="w-3 h-3" />
+                              <span>Upload Product Photo</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) =>
+                                  handleFileUpload(e, (url) => {
+                                    const updated = [...(site.products || [])];
+                                    updated[index].imageUrl = url;
+                                    updateSiteField('products', updated);
+                                  })
+                                }
+                              />
+                            </label>
+                            <input
+                              type="url"
+                              value={prod.imageUrl}
+                              onChange={(e) => {
+                                const updated = [...(site.products || [])];
+                                updated[index].imageUrl = e.target.value;
+                                updateSiteField('products', updated);
+                              }}
+                              placeholder="Or image URL..."
+                              className="w-full px-2 py-1 bg-white border border-zinc-300 rounded text-[11px]"
+                            />
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
@@ -724,8 +953,160 @@ export default function BuilderPage() {
                             className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
                           />
                         </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="text"
+                            value={prod.badge || ''}
+                            onChange={(e) => {
+                              const updated = [...(site.products || [])];
+                              updated[index].badge = e.target.value;
+                              updateSiteField('products', updated);
+                            }}
+                            placeholder="Badge (e.g. Best Seller)..."
+                            className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-700"
+                          />
+                          <input
+                            type="text"
+                            value={prod.description || ''}
+                            onChange={(e) => {
+                              const updated = [...(site.products || [])];
+                              updated[index].description = e.target.value;
+                              updateSiteField('products', updated);
+                            }}
+                            placeholder="Description..."
+                            className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-700"
+                          />
+                        </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {site.type === 'single_product' && site.singleProduct && (
+                  <div className="space-y-3">
+                    {/* Single Product Photo Upload */}
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-900 mb-1">
+                        Product Photo
+                      </label>
+                      <div className="flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-200 rounded-xl">
+                        <img
+                          src={site.singleProduct.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80'}
+                          alt={site.singleProduct.productName}
+                          className="w-16 h-16 rounded-xl object-cover border border-zinc-300 bg-white shrink-0"
+                        />
+                        <div className="flex-1 space-y-1.5">
+                          <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-black text-white text-xs font-bold cursor-pointer transition-all shadow-xs">
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>Upload Product Photo</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) =>
+                                handleFileUpload(e, (url) => {
+                                  updateSiteField('singleProduct', {
+                                    ...site.singleProduct!,
+                                    images: [url, ...(site.singleProduct?.images?.slice(1) || [])],
+                                  });
+                                })
+                              }
+                            />
+                          </label>
+                          <input
+                            type="url"
+                            value={site.singleProduct.images?.[0] || ''}
+                            onChange={(e) => {
+                              updateSiteField('singleProduct', {
+                                ...site.singleProduct!,
+                                images: [e.target.value, ...(site.singleProduct?.images?.slice(1) || [])],
+                              });
+                            }}
+                            placeholder="Or paste image URL..."
+                            className="w-full px-2.5 py-1 bg-white border border-zinc-300 rounded-lg text-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-900 mb-1">Product Title</label>
+                      <input
+                        type="text"
+                        value={site.singleProduct.productName}
+                        onChange={(e) => {
+                          updateSiteField('singleProduct', {
+                            ...site.singleProduct!,
+                            productName: e.target.value,
+                          });
+                        }}
+                        className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">Regular Price</label>
+                        <input
+                          type="text"
+                          value={site.singleProduct.regularPrice}
+                          onChange={(e) => {
+                            updateSiteField('singleProduct', {
+                              ...site.singleProduct!,
+                              regularPrice: e.target.value,
+                            });
+                          }}
+                          className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-900 mb-1">Sale Price</label>
+                        <input
+                          type="text"
+                          value={site.singleProduct.salePrice}
+                          onChange={(e) => {
+                            updateSiteField('singleProduct', {
+                              ...site.singleProduct!,
+                              salePrice: e.target.value,
+                            });
+                          }}
+                          className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-emerald-700"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-900 mb-1">Tagline</label>
+                      <input
+                        type="text"
+                        value={site.singleProduct.tagline || ''}
+                        onChange={(e) => {
+                          updateSiteField('singleProduct', {
+                            ...site.singleProduct!,
+                            tagline: e.target.value,
+                          });
+                        }}
+                        placeholder="e.g. Immersive Spatial Audio with Active Noise Cancellation"
+                        className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-900 mb-1">Description</label>
+                      <textarea
+                        rows={3}
+                        value={site.singleProduct.description || ''}
+                        onChange={(e) => {
+                          updateSiteField('singleProduct', {
+                            ...site.singleProduct!,
+                            description: e.target.value,
+                          });
+                        }}
+                        placeholder="Detailed product specifications and highlights..."
+                        className="w-full px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-800"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -733,7 +1114,7 @@ export default function BuilderPage() {
           </div>
         </div>
 
-        {/* Right Sandbox Live Iframe Preview */}
+        {/* Right Sandbox Live Iframe Preview (Renders Instant Realtime srcDoc) */}
         <div
           className={`flex-1 bg-zinc-200 p-4 md:p-6 flex flex-col items-center justify-center relative overflow-hidden ${
             mobileViewMode === 'editor' ? 'hidden md:flex' : 'flex'
@@ -742,7 +1123,7 @@ export default function BuilderPage() {
           <div className="w-full max-w-6xl h-full flex flex-col items-center justify-center">
             <iframe
               ref={iframeRef}
-              src={`/api/sites/${site.id}/preview`}
+              srcDoc={previewHtml}
               className={`transition-all duration-300 bg-white ${getDeviceClass()}`}
               title="Live Website Sandbox Preview"
             />

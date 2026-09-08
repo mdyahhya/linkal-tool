@@ -173,13 +173,98 @@ const INITIAL_SITES: SiteData[] = [
   }
 ];
 
-// Determine writable directory for Vercel serverless runtime vs local dev
 const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 const DATA_DIR = isServerless ? os.tmpdir() : path.join(process.cwd(), 'data');
 const DATA_FILE = path.join(DATA_DIR, 'sites.json');
 
-// Memory store fallback to guarantee zero 500 errors on Vercel
+// Memory store initialized with demo sites
 let inMemorySites: SiteData[] = [...INITIAL_SITES];
+let lastSyncedFromRemote = false;
+
+// Helper: Sync sites from GitHub repository if available
+async function fetchRemoteSitesFromGitHub(): Promise<SiteData[] | null> {
+  const token = process.env.GITHUB_TOKEN;
+  const owner = process.env.GITHUB_OWNER || 'mdyahhya';
+  if (!token || !owner) return null;
+
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/linkal-tool/contents/data/sites.json`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'Linkal-Website-Builder',
+      },
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const content = Buffer.from(data.content, 'base64').toString('utf-8');
+      const sites = JSON.parse(content);
+      if (Array.isArray(sites) && sites.length > 0) {
+        console.log(`[Storage] Synced ${sites.length} sites from GitHub database`);
+        return sites;
+      }
+    } else {
+      console.warn(`[Storage] GitHub fetch returned status: ${res.status}`);
+    }
+  } catch (err) {
+    console.warn('[Storage] Could not fetch remote sites from GitHub:', err);
+  }
+  return null;
+}
+
+// Helper: Save sites to GitHub repository
+async function saveRemoteSitesToGitHub(sites: SiteData[]): Promise<boolean> {
+  const token = process.env.GITHUB_TOKEN;
+  const owner = process.env.GITHUB_OWNER || 'mdyahhya';
+  if (!token || !owner) return false;
+
+  try {
+    // 1. Get existing file sha
+    let existingSha: string | undefined;
+    const checkRes = await fetch(`https://api.github.com/repos/${owner}/linkal-tool/contents/data/sites.json`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'Linkal-Website-Builder',
+      },
+      cache: 'no-store',
+    });
+    if (checkRes.ok) {
+      const data = await checkRes.json();
+      existingSha = data.sha;
+    }
+
+    // 2. Put file
+    const content = Buffer.from(JSON.stringify(sites, null, 2), 'utf-8').toString('base64');
+    const putRes = await fetch(`https://api.github.com/repos/${owner}/linkal-tool/contents/data/sites.json`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Linkal-Website-Builder',
+      },
+      body: JSON.stringify({
+        message: `Sync customer sites database [${sites.length} sites]`,
+        content,
+        sha: existingSha,
+      }),
+    });
+
+    if (putRes.ok) {
+      console.log(`[Storage] Successfully committed ${sites.length} sites to GitHub database`);
+      return true;
+    } else {
+      const errText = await putRes.text();
+      console.warn('[Storage] GitHub commit failed:', putRes.status, errText);
+    }
+  } catch (err) {
+    console.warn('[Storage] Could not save sites to GitHub database:', err);
+  }
+  return false;
+}
 
 function ensureDataFile(): void {
   try {
@@ -187,7 +272,7 @@ function ensureDataFile(): void {
       fs.mkdirSync(DATA_DIR, { recursive: true });
     }
     if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_SITES, null, 2), 'utf-8');
+      fs.writeFileSync(DATA_FILE, JSON.stringify(inMemorySites, null, 2), 'utf-8');
     }
   } catch (error) {
     console.warn('Storage directory check fallback:', error);
@@ -195,6 +280,22 @@ function ensureDataFile(): void {
 }
 
 export async function getAllSites(): Promise<SiteData[]> {
+  // 1. If not yet synced from GitHub on this serverless instance, fetch remote database
+  if (!lastSyncedFromRemote && (process.env.GITHUB_TOKEN && process.env.GITHUB_OWNER)) {
+    const remoteSites = await fetchRemoteSitesFromGitHub();
+    if (remoteSites && remoteSites.length > 0) {
+      inMemorySites = remoteSites;
+      lastSyncedFromRemote = true;
+      try {
+        ensureDataFile();
+        fs.writeFileSync(DATA_FILE, JSON.stringify(remoteSites, null, 2), 'utf-8');
+      } catch {}
+      return inMemorySites;
+    }
+    lastSyncedFromRemote = true;
+  }
+
+  // 2. Check local disk
   try {
     ensureDataFile();
     if (fs.existsSync(DATA_FILE)) {
@@ -208,6 +309,7 @@ export async function getAllSites(): Promise<SiteData[]> {
   } catch (error) {
     console.warn('Read storage fallback to memory:', error);
   }
+
   return inMemorySites;
 }
 
@@ -238,11 +340,19 @@ export async function saveSite(site: SiteData): Promise<SiteData> {
 
   inMemorySites = sites;
   
+  // Save locally / tmp
   try {
     ensureDataFile();
     fs.writeFileSync(DATA_FILE, JSON.stringify(sites, null, 2), 'utf-8');
   } catch (error) {
-    console.warn('Write storage fallback (Vercel serverless active):', error);
+    console.warn('Write storage fallback:', error);
+  }
+
+  // Await saving to GitHub database so serverless invocations persist completely
+  try {
+    await saveRemoteSitesToGitHub(sites);
+  } catch (e) {
+    console.error('[Storage] Remote GitHub save error:', e);
   }
 
   return updatedSite;
@@ -260,6 +370,13 @@ export async function deleteSite(id: string): Promise<boolean> {
     fs.writeFileSync(DATA_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
   } catch (error) {
     console.warn('Delete storage fallback:', error);
+  }
+
+  // Await sync delete to GitHub database
+  try {
+    await saveRemoteSitesToGitHub(filtered);
+  } catch (e) {
+    console.error('[Storage] Remote GitHub delete error:', e);
   }
 
   return true;

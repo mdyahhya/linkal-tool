@@ -112,16 +112,16 @@ export function generateStaticHtml(site: SiteData): string {
       <section class="features-bar">
         <div class="container features-grid">
           <div class="feature-item">
-            <span class="feature-icon">✨</span>
+            <span class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
             <div><strong>100% Authentic</strong><p>Curated Premium Selection</p></div>
           </div>
           <div class="feature-item">
-            <span class="feature-icon">💬</span>
+            <span class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.771.815 2.796.815 3.182 0 5.768-2.587 5.768-5.767.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.768c0 5.48-4.453 9.932-9.969 9.932-1.748 0-3.38-.456-4.807-1.252l-5.224 1.38 1.399-5.109c-.896-1.487-1.408-3.228-1.408-5.087 0-5.48 4.453-9.932 9.969-9.932 5.516 0 10.04 4.452 10.04 9.932z"/></svg></span>
             <div><strong>Instant WhatsApp Checkout</strong><p>Direct Seller Support</p></div>
           </div>
           <div class="feature-item">
-            <span class="feature-icon">🚀</span>
-            <div><strong>Fast Doorstep Shipping</strong><p>Safe & Express Transit</p></div>
+            <span class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span>
+            <div><strong>Fast Doorstep Shipping</strong><p>Safe &amp; Express Transit</p></div>
           </div>
         </div>
       </section>

@@ -36,8 +36,19 @@ import {
   ExternalLink as ArrowUpRight,
   Globe as LayoutGrid,
   Download as FileText,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { SiteData, SiteType, SiteStatus } from '@/types/site';
+
+function Upload({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
 
 function DashboardContent() {
   const router = useRouter();
@@ -64,10 +75,32 @@ function DashboardContent() {
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState<SiteType>('ecommerce');
   const [newPhone, setNewPhone] = useState('91');
+  const [newBannerImg, setNewBannerImg] = useState('');
+  const [newBannerTitle, setNewBannerTitle] = useState('');
+  const [newBannerSubtitle, setNewBannerSubtitle] = useState('');
+  const [newLogoImg, setNewLogoImg] = useState('');
+  const [newProdName, setNewProdName] = useState('');
+  const [newProdPrice, setNewProdPrice] = useState('');
+  const [newProdImg, setNewProdImg] = useState('');
+  const [newProdDesc, setNewProdDesc] = useState('');
   const [creating, setCreating] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingProd, setUploadingProd] = useState(false);
 
-  // Load sites
+  // Load sites with bidirectional localStorage sync
   const fetchSites = async () => {
+    // 1. Immediately read cached history so user sees their sites with zero flicker
+    try {
+      const cached = localStorage.getItem('linkal_sites_history');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setSites(parsed);
+        }
+      }
+    } catch {}
+
     try {
       setLoading(true);
       const res = await fetch('/api/sites');
@@ -76,7 +109,34 @@ function DashboardContent() {
         return;
       }
       const data = await res.json();
-      setSites(data.sites || []);
+      const serverSites: SiteData[] = data.sites || [];
+
+      // 2. Check if local history has sites not yet synced to server (e.g. after container restart)
+      let finalSites = [...serverSites];
+      try {
+        const cached = localStorage.getItem('linkal_sites_history');
+        if (cached) {
+          const localList: SiteData[] = JSON.parse(cached);
+          const serverIds = new Set(serverSites.map((s) => s.id));
+          const missingOnServer = localList.filter((s) => !serverIds.has(s.id));
+
+          if (missingOnServer.length > 0) {
+            // Asynchronously sync missing sites to server
+            fetch('/api/sites/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sites: missingOnServer }),
+            }).catch(console.error);
+
+            finalSites = [...missingOnServer, ...serverSites];
+          }
+        }
+      } catch {}
+
+      setSites(finalSites);
+      try {
+        localStorage.setItem('linkal_sites_history', JSON.stringify(finalSites));
+      } catch {}
     } catch (err) {
       console.error('Failed to load sites:', err);
     } finally {
@@ -112,6 +172,42 @@ function DashboardContent() {
     router.push('/login');
   };
 
+  // Image Upload Helper for modal
+  const handleModalFileUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (url: string) => void,
+    setLoadingState: (loading: boolean) => void
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setter(base64); // Instant local preview thumbnail
+      try {
+        setLoadingState(true);
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base64,
+            filename: file.name,
+          }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          setter(data.url);
+        }
+      } catch (err) {
+        console.warn('Upload error, kept local preview:', err);
+      } finally {
+        setLoadingState(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCreateSite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newPhone) return;
@@ -125,16 +221,41 @@ function DashboardContent() {
           name: newName,
           type: newType,
           whatsappNumber: newPhone,
+          bannerImageUrl: newBannerImg || undefined,
+          bannerTitle: newBannerTitle || undefined,
+          bannerSubtitle: newBannerSubtitle || undefined,
+          logoUrl: newLogoImg || undefined,
+          productName: newProdName || undefined,
+          productPrice: newProdPrice || undefined,
+          productImageUrl: newProdImg || undefined,
+          productDescription: newProdDesc || undefined,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create site');
 
+      const created = data.site;
+      const updatedList = [created, ...sites.filter((s) => s.id !== created.id)];
+      setSites(updatedList);
+      try {
+        localStorage.setItem('linkal_sites_history', JSON.stringify(updatedList));
+      } catch {}
+
       setShowCreateModal(false);
+      // Reset form
       setNewName('');
       setNewPhone('91');
-      router.push(`/builder/${data.site.id}`);
+      setNewBannerImg('');
+      setNewBannerTitle('');
+      setNewBannerSubtitle('');
+      setNewLogoImg('');
+      setNewProdName('');
+      setNewProdPrice('');
+      setNewProdImg('');
+      setNewProdDesc('');
+
+      router.push(`/builder/${created.id}`);
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -148,7 +269,11 @@ function DashboardContent() {
     try {
       const res = await fetch(`/api/sites/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete site');
-      setSites(sites.filter((s) => s.id !== id));
+      const filtered = sites.filter((s) => s.id !== id);
+      setSites(filtered);
+      try {
+        localStorage.setItem('linkal_sites_history', JSON.stringify(filtered));
+      } catch {}
     } catch (err: any) {
       alert(err.message);
     }
@@ -822,15 +947,15 @@ function DashboardContent() {
             className="fixed inset-0 drawer-backdrop"
             onClick={() => setShowCreateModal(false)}
           />
-          <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl border border-zinc-200 shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+          <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl border border-zinc-200 shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-zinc-950 text-white flex items-center justify-center font-bold">
                   <Plus className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-zinc-950">Create New Customer Site</h3>
-                  <p className="text-xs text-zinc-500 font-medium">Select a website blueprint</p>
+                  <h3 className="font-extrabold text-base text-zinc-950">Create New Customer Website</h3>
+                  <p className="text-xs text-zinc-500 font-medium">Configure store name, banner, logo &amp; products</p>
                 </div>
               </div>
               <button
@@ -842,49 +967,70 @@ function DashboardContent() {
             </div>
 
             <form onSubmit={handleCreateSite} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-zinc-800 mb-1">
-                  Website / Brand Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. Aura Luxury Handbags"
-                  className="w-full px-3.5 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-semibold text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950"
-                />
+              {/* 1. Website Name & WhatsApp */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    Website Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="e.g. Aura Luxury Handbags"
+                    className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-semibold text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-900 mb-1">
+                    WhatsApp Orders Phone *
+                  </label>
+                  <div className="relative">
+                    <MessageCircle className="w-4 h-4 text-emerald-600 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      placeholder="919876543210"
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-mono font-bold text-zinc-950 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                    />
+                  </div>
+                </div>
               </div>
 
+              {/* 2. Select Template */}
               <div>
-                <label className="block text-xs font-bold text-zinc-800 mb-1">
+                <label className="block text-xs font-bold text-zinc-900 mb-1">
                   Select Template Blueprint
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setNewType('ecommerce')}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                    className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
                       newType === 'ecommerce'
                         ? 'border-zinc-950 bg-zinc-50 shadow-xs ring-1 ring-zinc-950'
                         : 'border-zinc-200 bg-white hover:border-zinc-300'
                     }`}
                   >
-                    <ShoppingBag className="w-5 h-5 text-emerald-600 mb-2" />
+                    <ShoppingBag className="w-4 h-4 text-emerald-600 mb-1" />
                     <span className="text-xs font-bold text-zinc-950 block">E-commerce</span>
-                    <span className="text-[10px] text-zinc-500 font-medium">Product Catalog</span>
+                    <span className="text-[10px] text-zinc-500 font-medium">Catalog Store</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setNewType('single_product')}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                    className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
                       newType === 'single_product'
                         ? 'border-zinc-950 bg-zinc-50 shadow-xs ring-1 ring-zinc-950'
                         : 'border-zinc-200 bg-white hover:border-zinc-300'
                     }`}
                   >
-                    <Zap className="w-5 h-5 text-purple-600 mb-2" />
+                    <Zap className="w-4 h-4 text-purple-600 mb-1" />
                     <span className="text-xs font-bold text-zinc-950 block">Single Product</span>
                     <span className="text-[10px] text-zinc-500 font-medium">Hero Landing</span>
                   </button>
@@ -892,38 +1038,180 @@ function DashboardContent() {
                   <button
                     type="button"
                     onClick={() => setNewType('portfolio')}
-                    className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                    className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
                       newType === 'portfolio'
                         ? 'border-zinc-950 bg-zinc-50 shadow-xs ring-1 ring-zinc-950'
                         : 'border-zinc-200 bg-white hover:border-zinc-300'
                     }`}
                   >
-                    <User className="w-5 h-5 text-blue-600 mb-2" />
+                    <User className="w-4 h-4 text-blue-600 mb-1" />
                     <span className="text-xs font-bold text-zinc-950 block">Portfolio</span>
-                    <span className="text-[10px] text-zinc-500 font-medium">Personal Showcase</span>
+                    <span className="text-[10px] text-zinc-500 font-medium">Showcase</span>
                   </button>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-zinc-800 mb-1">
-                  WhatsApp Orders Phone Number (with Country Code)
-                </label>
-                <div className="relative">
-                  <MessageCircle className="w-4 h-4 text-emerald-600 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              {/* 3. Starting Main Page Banner */}
+              <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-zinc-950">Starting Main Page Banner</span>
+                  <span className="text-[10px] font-semibold text-zinc-500">Auto-saved to cloud</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {newBannerImg ? (
+                    <img
+                      src={newBannerImg}
+                      alt="Banner Preview"
+                      className="w-16 h-10 object-cover rounded-lg border border-zinc-300 bg-white shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-10 rounded-lg bg-zinc-200 border border-zinc-300 flex items-center justify-center text-zinc-400 shrink-0">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  <div className="flex-1 space-y-1">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-black text-white text-xs font-bold cursor-pointer transition-all shadow-xs">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{uploadingBanner ? 'Uploading...' : 'Upload Banner Photo'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingBanner}
+                        className="hidden"
+                        onChange={(e) => handleModalFileUpload(e, setNewBannerImg, setUploadingBanner)}
+                      />
+                    </label>
+                    <input
+                      type="url"
+                      value={newBannerImg}
+                      onChange={(e) => setNewBannerImg(e.target.value)}
+                      placeholder="Or paste banner image URL..."
+                      className="w-full px-2.5 py-1 bg-white border border-zinc-300 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                   <input
                     type="text"
-                    required
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                    placeholder="919876543210"
-                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-zinc-300 rounded-xl text-sm font-mono font-semibold text-zinc-950 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                    value={newBannerTitle}
+                    onChange={(e) => setNewBannerTitle(e.target.value)}
+                    placeholder="Banner Headline (e.g. Autumn Collection)..."
+                    className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
+                  />
+                  <input
+                    type="text"
+                    value={newBannerSubtitle}
+                    onChange={(e) => setNewBannerSubtitle(e.target.value)}
+                    placeholder="Banner Subtitle / Description..."
+                    className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-700"
                   />
                 </div>
-                <p className="text-[11px] text-zinc-500 font-medium mt-1">
-                  All customer buy &amp; inquiry clicks will open direct WhatsApp chat to this number.
-                </p>
               </div>
+
+              {/* 4. Brand Logo */}
+              <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+                <span className="text-xs font-bold text-zinc-950 block">Brand Logo (Optional)</span>
+                <div className="flex items-center gap-3">
+                  {newLogoImg ? (
+                    <img
+                      src={newLogoImg}
+                      alt="Logo Preview"
+                      className="w-10 h-10 object-cover rounded-lg border border-zinc-300 bg-white shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-zinc-200 border border-zinc-300 flex items-center justify-center text-zinc-400 shrink-0">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                  )}
+
+                  <div className="flex-1 space-y-1">
+                    <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-zinc-300 hover:bg-zinc-100 text-zinc-900 text-xs font-bold cursor-pointer transition-all shadow-xs">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{uploadingLogo ? 'Uploading...' : 'Upload Logo File'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingLogo}
+                        className="hidden"
+                        onChange={(e) => handleModalFileUpload(e, setNewLogoImg, setUploadingLogo)}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* 5. First Product (For E-commerce or Single Product) */}
+              {(newType === 'ecommerce' || newType === 'single_product') && (
+                <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-950">First Product Showcase</span>
+                    <span className="text-[10px] font-semibold text-zinc-500">Upload product image directly</span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {newProdImg ? (
+                      <img
+                        src={newProdImg}
+                        alt="Product Preview"
+                        className="w-12 h-12 object-cover rounded-lg border border-zinc-300 bg-white shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-zinc-200 border border-zinc-300 flex items-center justify-center text-zinc-400 shrink-0">
+                        <ShoppingBag className="w-4 h-4" />
+                      </div>
+                    )}
+
+                    <div className="flex-1 space-y-1">
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-950 hover:bg-black text-white text-xs font-bold cursor-pointer transition-all shadow-xs">
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{uploadingProd ? 'Uploading...' : 'Upload Product Photo'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={uploadingProd}
+                          className="hidden"
+                          onChange={(e) => handleModalFileUpload(e, setNewProdImg, setUploadingProd)}
+                        />
+                      </label>
+                      <input
+                        type="url"
+                        value={newProdImg}
+                        onChange={(e) => setNewProdImg(e.target.value)}
+                        placeholder="Or paste product image URL..."
+                        className="w-full px-2.5 py-1 bg-white border border-zinc-300 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <input
+                      type="text"
+                      value={newProdName}
+                      onChange={(e) => setNewProdName(e.target.value)}
+                      placeholder="Product Name..."
+                      className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
+                    />
+                    <input
+                      type="text"
+                      value={newProdPrice}
+                      onChange={(e) => setNewProdPrice(e.target.value)}
+                      placeholder="Price (e.g. 2,499)..."
+                      className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-950"
+                    />
+                  </div>
+
+                  <input
+                    type="text"
+                    value={newProdDesc}
+                    onChange={(e) => setNewProdDesc(e.target.value)}
+                    placeholder="Short product description..."
+                    className="w-full px-2.5 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs text-zinc-700"
+                  />
+                </div>
+              )}
 
               <div className="pt-3 border-t border-zinc-100 flex items-center justify-end gap-2">
                 <button
@@ -936,7 +1224,7 @@ function DashboardContent() {
 
                 <button
                   type="submit"
-                  disabled={creating}
+                  disabled={creating || uploadingBanner || uploadingLogo || uploadingProd}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all shadow-xs disabled:opacity-50"
                 >
                   {creating ? (

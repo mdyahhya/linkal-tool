@@ -1,0 +1,151 @@
+[
+  {
+    "id": "demo-shop",
+    "name": "Aura Luxury Handbags",
+    "slug": "aura-luxury",
+    "type": "ecommerce",
+    "status": "draft",
+    "whatsappNumber": "919876543210",
+    "defaultWhatsappMessage": "Hi Aura Luxury, I am interested in ordering {item}!",
+    "logoUrl": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=200&auto=format&fit=crop&q=80",
+    "themeColor": "#059669",
+    "fontFamily": "Plus Jakarta Sans",
+    "sliderAutoRotateSeconds": 4,
+    "bannerSlider": [
+      {
+        "id": "slide-1",
+        "imageUrl": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=1600&auto=format&fit=crop&q=80",
+        "title": "Autumn Elegance Collection",
+        "subtitle": "Handcrafted genuine leather accessories designed for timeless everyday luxury.",
+        "ctaText": "Shop New Arrivals"
+      },
+      {
+        "id": "slide-2",
+        "imageUrl": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=1600&auto=format&fit=crop&q=80",
+        "title": "Limited Edition Silk Totes",
+        "subtitle": "Direct WhatsApp checkout with priority doorstep express delivery across India.",
+        "ctaText": "Explore Exclusive"
+      }
+    ],
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "The Classic Siena Leather Tote",
+        "price": "4,499",
+        "currency": "₹",
+        "description": "Full-grain Italian style leather with gold-tone hardware and zippered laptop compartment.",
+        "imageUrl": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&auto=format&fit=crop&q=80",
+        "badge": "Best Seller",
+        "inStock": true
+      },
+      {
+        "id": "prod-2",
+        "name": "Milano Crossbody Bag",
+        "price": "2,999",
+        "currency": "₹",
+        "description": "Compact everyday companion with adjustable strap, magnetic clasp, and water-resistant lining.",
+        "imageUrl": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&auto=format&fit=crop&q=80",
+        "badge": "Trending",
+        "inStock": true
+      },
+      {
+        "id": "prod-3",
+        "name": "Verona Mini Clutch",
+        "price": "1,899",
+        "currency": "₹",
+        "description": "Minimalist evening purse with detachable delicate chain strap and interior card slots.",
+        "imageUrl": "https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=800&auto=format&fit=crop&q=80",
+        "badge": "Sale",
+        "inStock": true
+      }
+    ],
+    "createdAt": "2026-09-08T00:00:00.000Z",
+    "updatedAt": "2026-09-08T00:00:00.000Z"
+  },
+  {
+    "id": "demo-portfolio",
+    "name": "Kabir Verma — Visual & Product Designer",
+    "slug": "kabir-portfolio",
+    "type": "portfolio",
+    "status": "draft",
+    "whatsappNumber": "919876543210",
+    "defaultWhatsappMessage": "Hi Kabir, I saw your portfolio and would love to collaborate on a design project!",
+    "logoUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
+    "themeColor": "#4f46e5",
+    "fontFamily": "Inter",
+    "portfolioRoleTitle": "Senior Product Designer & Brand Strategist",
+    "portfolioAvatarUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80",
+    "portfolioAbout": "I design intuitive digital experiences and high-converting brand identities.",
+    "bannerSlider": [
+      {
+        "id": "p-slide-1",
+        "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1600&auto=format&fit=crop&q=80",
+        "title": "Building Intuitive Digital Products",
+        "subtitle": "From user research and design systems to production-ready interfaces.",
+        "ctaText": "Hire Me on WhatsApp"
+      }
+    ],
+    "portfolioSkills": [
+      { "id": "sk-1", "name": "UI/UX Design", "level": "Expert", "category": "Design" },
+      { "id": "sk-2", "name": "Design Systems", "level": "Expert", "category": "Design" },
+      { "id": "sk-3", "name": "Figma & Prototyping", "level": "Advanced", "category": "Tooling" }
+    ],
+    "portfolioProjects": [
+      {
+        "id": "proj-1",
+        "title": "Finflow — Next-Gen Neobank App",
+        "description": "End-to-end mobile design for a modern financial management app with 250k+ active users.",
+        "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
+        "tags": ["Fintech", "Mobile UX"]
+      }
+    ],
+    "createdAt": "2026-09-08T00:00:00.000Z",
+    "updatedAt": "2026-09-08T00:00:00.000Z"
+  },
+  {
+    "id": "demo-single-product",
+    "name": "SonicPro Ultra Noise Cancelling Headphones",
+    "slug": "sonicpro-ultra",
+    "type": "single_product",
+    "status": "draft",
+    "whatsappNumber": "919876543210",
+    "defaultWhatsappMessage": "Hi SonicPro Team, I want to place an order for the SonicPro Ultra!",
+    "logoUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&auto=format&fit=crop&q=80",
+    "themeColor": "#ea580c",
+    "fontFamily": "Outfit",
+    "bannerSlider": [
+      {
+        "id": "sp-slide-1",
+        "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1600&auto=format&fit=crop&q=80",
+        "title": "Hear Nothing Else.",
+        "subtitle": "Studio-grade acoustic precision with 40-hour ultra battery life and hybrid active noise cancellation.",
+        "ctaText": "Order via WhatsApp"
+      }
+    ],
+    "singleProduct": {
+      "productName": "SonicPro Ultra Wireless Headset",
+      "tagline": "Immersive Spatial Audio with Industry-Leading Active Noise Cancellation",
+      "regularPrice": "14,999",
+      "salePrice": "9,999",
+      "currency": "₹",
+      "description": "Engineered for audio purists and daily commuters alike.",
+      "images": [
+        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&auto=format&fit=crop&q=80"
+      ],
+      "features": [
+        "40dB Hybrid Active Noise Cancellation",
+        "Up to 40 Hours continuous playback"
+      ],
+      "specifications": [
+        { "label": "Weight", "value": "250g ultra-lightweight" },
+        { "label": "Connectivity", "value": "Bluetooth 5.3" }
+      ],
+      "reviews": [
+        { "reviewerName": "Rohit Sharma", "rating": 5, "comment": "Hands down the best headphones under 15k." }
+      ],
+      "guaranteeText": "100% Original Brand Guarantee | 7-Day Replacement | Express Delivery"
+    },
+    "createdAt": "2026-09-08T00:00:00.000Z",
+    "updatedAt": "2026-09-08T00:00:00.000Z"
+  }
+]

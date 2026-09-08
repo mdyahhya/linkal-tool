@@ -21,12 +21,19 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PUT(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const existing = await getSiteById(id);
-    if (!existing) {
-      return NextResponse.json({ error: 'Site not found' }, { status: 404 });
-    }
-
     const updates = await request.json();
+    const existing = await getSiteById(id);
+    
+    if (!existing) {
+      // Upsert: Save directly if missing on cold start
+      const newSite = {
+        ...updates,
+        id,
+        updatedAt: new Date().toISOString(),
+      };
+      const saved = await saveSite(newSite);
+      return NextResponse.json({ site: saved });
+    }
 
     // If slug changed, verify uniqueness
     if (updates.slug && updates.slug !== existing.slug) {
