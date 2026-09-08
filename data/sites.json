@@ -1,68 +1,5 @@
 [
   {
-    "id": "demo-shop",
-    "name": "Aura Luxury Handbags",
-    "slug": "aura-luxury",
-    "type": "ecommerce",
-    "status": "draft",
-    "whatsappNumber": "919876543210",
-    "defaultWhatsappMessage": "Hi Aura Luxury, I am interested in ordering {item}!",
-    "logoUrl": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=200&auto=format&fit=crop&q=80",
-    "themeColor": "#059669",
-    "fontFamily": "Plus Jakarta Sans",
-    "sliderAutoRotateSeconds": 4,
-    "bannerSlider": [
-      {
-        "id": "slide-1",
-        "imageUrl": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=1600&auto=format&fit=crop&q=80",
-        "title": "Autumn Elegance Collection",
-        "subtitle": "Handcrafted genuine leather accessories designed for timeless everyday luxury.",
-        "ctaText": "Shop New Arrivals"
-      },
-      {
-        "id": "slide-2",
-        "imageUrl": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=1600&auto=format&fit=crop&q=80",
-        "title": "Limited Edition Silk Totes",
-        "subtitle": "Direct WhatsApp checkout with priority doorstep express delivery across India.",
-        "ctaText": "Explore Exclusive"
-      }
-    ],
-    "products": [
-      {
-        "id": "prod-1",
-        "name": "The Classic Siena Leather Tote",
-        "price": "4,499",
-        "currency": "₹",
-        "description": "Full-grain Italian style leather with gold-tone hardware and zippered laptop compartment.",
-        "imageUrl": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&auto=format&fit=crop&q=80",
-        "badge": "Best Seller",
-        "inStock": true
-      },
-      {
-        "id": "prod-2",
-        "name": "Milano Crossbody Bag",
-        "price": "2,999",
-        "currency": "₹",
-        "description": "Compact everyday companion with adjustable strap, magnetic clasp, and water-resistant lining.",
-        "imageUrl": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=800&auto=format&fit=crop&q=80",
-        "badge": "Trending",
-        "inStock": true
-      },
-      {
-        "id": "prod-3",
-        "name": "Verona Mini Clutch",
-        "price": "1,899",
-        "currency": "₹",
-        "description": "Minimalist evening purse with detachable delicate chain strap and interior card slots.",
-        "imageUrl": "https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=800&auto=format&fit=crop&q=80",
-        "badge": "Sale",
-        "inStock": true
-      }
-    ],
-    "createdAt": "2026-09-08T00:00:00.000Z",
-    "updatedAt": "2026-09-08T00:00:00.000Z"
-  },
-  {
     "id": "demo-portfolio",
     "name": "Kabir Verma — Visual & Product Designer",
     "slug": "kabir-portfolio",
@@ -86,9 +23,24 @@
       }
     ],
     "portfolioSkills": [
-      { "id": "sk-1", "name": "UI/UX Design", "level": "Expert", "category": "Design" },
-      { "id": "sk-2", "name": "Design Systems", "level": "Expert", "category": "Design" },
-      { "id": "sk-3", "name": "Figma & Prototyping", "level": "Advanced", "category": "Tooling" }
+      {
+        "id": "sk-1",
+        "name": "UI/UX Design",
+        "level": "Expert",
+        "category": "Design"
+      },
+      {
+        "id": "sk-2",
+        "name": "Design Systems",
+        "level": "Expert",
+        "category": "Design"
+      },
+      {
+        "id": "sk-3",
+        "name": "Figma & Prototyping",
+        "level": "Advanced",
+        "category": "Tooling"
+      }
     ],
     "portfolioProjects": [
       {
@@ -96,7 +48,10 @@
         "title": "Finflow — Next-Gen Neobank App",
         "description": "End-to-end mobile design for a modern financial management app with 250k+ active users.",
         "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
-        "tags": ["Fintech", "Mobile UX"]
+        "tags": [
+          "Fintech",
+          "Mobile UX"
+        ]
       }
     ],
     "createdAt": "2026-09-08T00:00:00.000Z",
@@ -137,11 +92,21 @@
         "Up to 40 Hours continuous playback"
       ],
       "specifications": [
-        { "label": "Weight", "value": "250g ultra-lightweight" },
-        { "label": "Connectivity", "value": "Bluetooth 5.3" }
+        {
+          "label": "Weight",
+          "value": "250g ultra-lightweight"
+        },
+        {
+          "label": "Connectivity",
+          "value": "Bluetooth 5.3"
+        }
       ],
       "reviews": [
-        { "reviewerName": "Rohit Sharma", "rating": 5, "comment": "Hands down the best headphones under 15k." }
+        {
+          "reviewerName": "Rohit Sharma",
+          "rating": 5,
+          "comment": "Hands down the best headphones under 15k."
+        }
       ],
       "guaranteeText": "100% Original Brand Guarantee | 7-Day Replacement | Express Delivery"
     },
