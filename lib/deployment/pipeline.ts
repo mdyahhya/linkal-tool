@@ -181,7 +181,7 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
     }
 
     const liveUrl = `https://${customDomain}`;
-    updatedSite.status = isLive ? 'live' : 'published';
+    updatedSite.status = 'live';
     updatedSite.liveUrl = liveUrl;
     updatedSite.lastDeployedAt = new Date().toISOString();
     updatedSite.deploymentLogs = logs;

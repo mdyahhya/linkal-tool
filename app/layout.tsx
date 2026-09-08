@@ -10,7 +10,7 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: 'Linkal — Pure SaaS Website Builder & Publishing Pipeline',
-  description: 'Instant zero-build static site generation & automated Vercel deployment with WhatsApp direct checkout.',
+  description: 'Instant zero-build static site generation & automated cloud deployment with WhatsApp direct checkout.',
 };
 
 export default function RootLayout({

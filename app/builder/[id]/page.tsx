@@ -13,6 +13,7 @@ import {
   Plus,
   Trash2,
   ExternalLink,
+  ExternalLink as ArrowUpRight,
   Check,
   Globe,
   Sliders,
@@ -236,13 +237,31 @@ export default function BuilderPage() {
         throw new Error(data.error || 'Deployment failed');
       }
 
-      setSite(data.site);
-      setDeploymentLogs(data.site.deploymentLogs || []);
+      const publishedSite: SiteData = {
+        ...(data.site || site),
+        status: 'live',
+        liveUrl: data.site?.liveUrl || `https://${site.slug}.dominal.in`,
+        deploymentLogs: data.site?.deploymentLogs || deploymentLogs,
+      };
 
-      // Auto-redirect to My Sites on dashboard
-      setTimeout(() => {
-        router.push(`/dashboard?published=${site.id}`);
-      }, 1500);
+      setSite(publishedSite);
+      setDeploymentLogs(publishedSite.deploymentLogs || []);
+
+      // Persist to local history immediately with live URL & status
+      try {
+        const local = localStorage.getItem('linkal_sites_history');
+        if (local) {
+          const list: SiteData[] = JSON.parse(local);
+          const idx = list.findIndex((s) => s.id === publishedSite.id);
+          if (idx >= 0) list[idx] = publishedSite;
+          else list.unshift(publishedSite);
+          localStorage.setItem('linkal_sites_history', JSON.stringify(list));
+        } else {
+          localStorage.setItem('linkal_sites_history', JSON.stringify([publishedSite]));
+        }
+      } catch {}
+
+      // Keep popup open so user can inspect live domain link & preview
     } catch (err: any) {
       alert(err.message || 'Publishing failed');
     } finally {
@@ -1170,25 +1189,106 @@ export default function BuilderPage() {
 
       {/* Publish Modal */}
       {showPublishModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 drawer-backdrop" onClick={() => !deploying && setShowPublishModal(false)} />
-          <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl border border-zinc-200 shadow-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div
+            className="fixed inset-0 drawer-backdrop"
+            onClick={() => !deploying && setShowPublishModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl border border-zinc-200 shadow-2xl p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
               <div className="flex items-center gap-2">
-                <Rocket className="w-5 h-5 text-emerald-600" />
-                <h3 className="font-extrabold text-base text-zinc-950">Publishing Website</h3>
+                <div className="w-8 h-8 rounded-lg bg-zinc-950 text-white flex items-center justify-center">
+                  <Rocket className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-zinc-950">
+                    {deploying
+                      ? 'Publishing Storefront'
+                      : site.status === 'live'
+                      ? 'Storefront is Live & Published!'
+                      : 'Publishing Complete'}
+                  </h3>
+                  <p className="text-xs text-zinc-500 font-mono">
+                    https://{site.slug}.dominal.in
+                  </p>
+                </div>
               </div>
               {!deploying && (
                 <button
                   onClick={() => setShowPublishModal(false)}
-                  className="p-1.5 rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-950"
+                  className="p-1.5 rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100"
                 >
                   <X className="w-4 h-4" />
                 </button>
               )}
             </div>
 
-            <div className="bg-zinc-950 rounded-xl p-4 font-mono text-xs text-zinc-300 max-h-60 overflow-y-auto space-y-2">
+            {/* When live: Celebratory Live Domain Link & Preview */}
+            {!deploying && site.status === 'live' && (
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                  <div className="flex items-center gap-2 text-emerald-950 font-extrabold text-sm">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                    <span>Storefront Published Successfully!</span>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 text-[10px] font-bold self-start sm:self-auto">
+                    ✓ Saved to My Websites &amp; History
+                  </span>
+                </div>
+
+                <div className="bg-white p-3 rounded-xl border border-emerald-200 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-zinc-500 font-medium">Live Domain Link:</span>
+                    <span className="text-emerald-700 font-mono font-bold">
+                      https://{site.slug}.dominal.in
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <a
+                      href={site.liveUrl || `https://${site.slug}.dominal.in`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs"
+                    >
+                      <span>Open Live Website</span>
+                      <ArrowUpRight className="w-4 h-4" />
+                    </a>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(
+                          site.liveUrl || `https://${site.slug}.dominal.in`
+                        );
+                        alert('Live link copied to clipboard!');
+                      }}
+                      className="px-3 py-2 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-950 text-xs font-bold transition-all"
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                </div>
+
+                {/* Embedded Live Preview in Modal */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-xs text-zinc-600 font-medium">
+                    <span>Live Preview:</span>
+                    <span className="text-[10px] text-zinc-400">Interactive</span>
+                  </div>
+                  <div className="w-full h-52 sm:h-60 rounded-xl overflow-hidden border border-zinc-300 bg-white shadow-inner">
+                    <iframe
+                      srcDoc={previewHtml}
+                      className="w-full h-full border-0"
+                      title="Published Preview"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Deployment Logs Box */}
+            <div className="bg-zinc-950 rounded-xl p-3.5 font-mono text-xs text-zinc-300 max-h-36 overflow-y-auto space-y-1.5 border border-zinc-800">
               {deploymentLogs.map((log, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <span className="text-zinc-500 text-[10px]">
@@ -1197,32 +1297,34 @@ export default function BuilderPage() {
                   <span className="font-bold uppercase text-[10px] text-emerald-400">
                     [{log.step}]
                   </span>
-                  <span>{log.message}</span>
+                  <span className="text-zinc-200">{log.message}</span>
                 </div>
               ))}
 
               {deploying && (
-                <div className="flex items-center gap-2 text-amber-400 pt-2 border-t border-zinc-800">
+                <div className="flex items-center gap-2 text-amber-400 pt-1 border-t border-zinc-800">
                   <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
                   <span>Publishing to Linkal servers...</span>
                 </div>
               )}
-
-              {!deploying && deploymentLogs.length > 0 && (
-                <div className="flex items-center gap-2 text-emerald-400 pt-2 border-t border-zinc-800 font-bold">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Website published! Opening My Sites...</span>
-                </div>
-              )}
             </div>
 
-            <div className="pt-2 flex justify-end">
+            {/* Modal Actions: stays open until user clicks */}
+            <div className="pt-2 flex items-center justify-end gap-2 border-t border-zinc-100">
+              <button
+                onClick={() => setShowPublishModal(false)}
+                disabled={deploying}
+                className="px-4 py-2 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-xs font-bold transition-all disabled:opacity-50"
+              >
+                Keep Editing
+              </button>
+
               <button
                 onClick={() => router.push(`/dashboard?published=${site.id}`)}
                 disabled={deploying}
-                className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all disabled:opacity-50 shadow-xs"
               >
-                {deploying ? 'Publishing...' : 'Go to My Sites'}
+                Close &amp; Go to My Sites
               </button>
             </div>
           </div>

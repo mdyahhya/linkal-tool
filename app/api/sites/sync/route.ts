@@ -15,10 +15,23 @@ export async function POST(request: Request) {
     const currentSites = await getAllSites();
     const currentIds = new Set(currentSites.map((s) => s.id));
 
-    // Save any local sites that don't exist on server
+    // Save any local sites that don't exist on server or update existing ones if local has live status/newer updates
     for (const site of localSites) {
-      if (!currentIds.has(site.id)) {
+      const existing = currentSites.find((s) => s.id === site.id);
+      if (!existing) {
         await saveSite(site);
+      } else if (site.status === 'live' && existing.status !== 'live') {
+        await saveSite({
+          ...existing,
+          ...site,
+          status: 'live',
+          liveUrl: site.liveUrl || `https://${site.slug}.dominal.in`,
+        });
+      } else if (
+        new Date(site.updatedAt || 0).getTime() >
+        new Date(existing.updatedAt || 0).getTime()
+      ) {
+        await saveSite({ ...existing, ...site });
       }
     }
 

@@ -50,6 +50,23 @@ function Upload({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   );
 }
 
+function CopyIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -59,6 +76,7 @@ function DashboardContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
 
   // Drawer & Navigation states
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -111,24 +129,45 @@ function DashboardContent() {
       const data = await res.json();
       const serverSites: SiteData[] = data.sites || [];
 
-      // 2. Check if local history has sites not yet synced to server (e.g. after container restart)
+      // 2. Check if local history has sites not yet synced to server or sites marked live locally
       let finalSites = [...serverSites];
       try {
         const cached = localStorage.getItem('linkal_sites_history');
         if (cached) {
           const localList: SiteData[] = JSON.parse(cached);
-          const serverIds = new Set(serverSites.map((s) => s.id));
-          const missingOnServer = localList.filter((s) => !serverIds.has(s.id));
 
+          // Merge server sites with local changes (e.g. status: 'live' or newer updatedAt)
+          finalSites = serverSites.map((serverSite) => {
+            const localMatch = localList.find((l) => l.id === serverSite.id);
+            if (localMatch) {
+              if (localMatch.status === 'live' && serverSite.status !== 'live') {
+                return {
+                  ...serverSite,
+                  status: 'live',
+                  liveUrl: localMatch.liveUrl || `https://${serverSite.slug}.dominal.in`,
+                };
+              }
+              if (
+                new Date(localMatch.updatedAt || 0).getTime() >
+                new Date(serverSite.updatedAt || 0).getTime()
+              ) {
+                return { ...serverSite, ...localMatch };
+              }
+            }
+            return serverSite;
+          });
+
+          // Add any sites in local cache that the server doesn't have
+          const currentIds = new Set(finalSites.map((s) => s.id));
+          const missingOnServer = localList.filter((s) => !currentIds.has(s.id));
           if (missingOnServer.length > 0) {
+            finalSites = [...missingOnServer, ...finalSites];
             // Asynchronously sync missing sites to server
             fetch('/api/sites/sync', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ sites: missingOnServer }),
             }).catch(console.error);
-
-            finalSites = [...missingOnServer, ...serverSites];
           }
         }
       } catch {}
@@ -287,6 +326,8 @@ function DashboardContent() {
     try {
       const res = await fetch(`/api/sites/${site.id}/publish`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site }),
       });
       const data = await res.json();
 
@@ -294,7 +335,29 @@ function DashboardContent() {
         throw new Error(data.error || 'Deployment pipeline encountered an error');
       }
 
-      setActiveDeploymentSite(data.site);
+      const publishedSite: SiteData = {
+        ...(data.site || site),
+        status: 'live',
+        liveUrl: data.site?.liveUrl || `https://${site.slug}.dominal.in`,
+        deploymentLogs: data.site?.deploymentLogs || site.deploymentLogs,
+      };
+
+      setActiveDeploymentSite(publishedSite);
+
+      // Immediately persist to local history
+      try {
+        const local = localStorage.getItem('linkal_sites_history');
+        if (local) {
+          const list: SiteData[] = JSON.parse(local);
+          const idx = list.findIndex((s) => s.id === publishedSite.id);
+          if (idx >= 0) list[idx] = publishedSite;
+          else list.unshift(publishedSite);
+          localStorage.setItem('linkal_sites_history', JSON.stringify(list));
+        } else {
+          localStorage.setItem('linkal_sites_history', JSON.stringify([publishedSite]));
+        }
+      } catch {}
+
       fetchSites();
     } catch (err: any) {
       setDeploymentError(err.message || 'Deployment failed');
@@ -553,10 +616,10 @@ function DashboardContent() {
               <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
               <div>
                 <span className="font-extrabold block text-amber-950">
-                  ⚠️ Action Required for Live Cloud Publishing on Vercel
+                  Cloud Configuration Advisory
                 </span>
                 <p className="text-amber-800 font-medium mt-0.5">
-                  Your local API keys need to be added to your Vercel Project Settings ➔ Environment Variables for live deployments under *.dominal.in.
+                  Ensure platform API keys are configured in environment variables for automated domain publishing under *.dominal.in.
                 </p>
               </div>
             </div>
@@ -574,7 +637,7 @@ function DashboardContent() {
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>
-                <strong>Live Cloud Integration Active</strong> (Owner: {cloudHealth.ownerName || 'Active'}) &bull; Publishing connects directly to GitHub, Vercel &amp; dominal.in.
+                <strong>Live Cloud Integration Active</strong> &bull; Automated publishing connects directly to Linkal servers &amp; Linkal domain servers (*.dominal.in).
               </span>
             </div>
             <span className="px-2.5 py-0.5 rounded-full bg-emerald-200 font-mono font-bold text-[10px] text-emerald-900">
@@ -829,6 +892,59 @@ function DashboardContent() {
                       </span>
                     </div>
                   </div>
+
+                  {/* Live Domain URL Badge */}
+                  {(site.status === 'live' || site.liveUrl) && (
+                    <div className="mb-3 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                        <a
+                          href={site.liveUrl || `https://${site.slug}.dominal.in`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs font-mono font-bold text-emerald-800 hover:text-emerald-950 truncate underline"
+                          title={site.liveUrl || `https://${site.slug}.dominal.in`}
+                        >
+                          https://{site.slug}.dominal.in
+                        </a>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(
+                              site.liveUrl || `https://${site.slug}.dominal.in`
+                            );
+                            setCopiedSlug(site.slug);
+                            setTimeout(() => setCopiedSlug(null), 2000);
+                          }}
+                          className="px-2 py-1 bg-white border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800 hover:bg-emerald-100 flex items-center gap-1 transition-all"
+                          title="Copy Live Link"
+                        >
+                          {copiedSlug === site.slug ? (
+                            <>
+                              <CheckIcon className="w-3 h-3 text-emerald-600" />
+                              <span>Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <CopyIcon className="w-3 h-3 text-emerald-700" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                        <a
+                          href={site.liveUrl || `https://${site.slug}.dominal.in`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg transition-colors"
+                          title="Open Live Website"
+                        >
+                          <ArrowUpRight className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Card Actions */}
@@ -842,27 +958,38 @@ function DashboardContent() {
                       <span>Edit Builder</span>
                     </button>
 
-                    <button
-                      onClick={() => handlePublish(site)}
-                      disabled={site.status === 'deploying'}
-                      className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-950 text-xs font-bold transition-all disabled:opacity-50"
-                    >
-                      <Rocket className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>{site.status === 'live' ? 'Re-Deploy' : 'Publish'}</span>
-                    </button>
+                    {site.status === 'live' ? (
+                      <a
+                        href={site.liveUrl || `https://${site.slug}.dominal.in`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs"
+                      >
+                        <span>Open Live</span>
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </a>
+                    ) : (
+                      <button
+                        onClick={() => handlePublish(site)}
+                        disabled={site.status === 'deploying'}
+                        className="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-950 text-xs font-bold transition-all disabled:opacity-50"
+                      >
+                        <Rocket className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Publish</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between pt-1 text-xs">
-                    {site.liveUrl ? (
-                      <a
-                        href={site.liveUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:text-emerald-800"
+                    {site.status === 'live' ? (
+                      <button
+                        onClick={() => handlePublish(site)}
+                        disabled={deploying}
+                        className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 disabled:opacity-50"
                       >
-                        <span>Visit Site</span>
-                        <ArrowUpRight className="w-3.5 h-3.5" />
-                      </a>
+                        <RefreshCw className={`w-3 h-3 text-zinc-400 ${deploying ? 'animate-spin' : ''}`} />
+                        <span>{deploying ? 'Deploying...' : 'Re-deploy updates'}</span>
+                      </button>
                     ) : (
                       <button
                         onClick={() => handlePublish(site)}
@@ -1312,7 +1439,7 @@ function DashboardContent() {
                 </div>
                 <p className="font-medium text-red-800">{deploymentError}</p>
                 <div className="pt-1 text-[11px] text-zinc-600 border-t border-red-200">
-                  💡 <strong>Troubleshooting Tip:</strong> Ensure GITHUB_TOKEN, VERCEL_TOKEN, and CLOUDFLARE_API_TOKEN are configured in Vercel Project Settings ➔ Environment Variables.
+                  💡 <strong>Troubleshooting Tip:</strong> Ensure platform API tokens are configured in your platform environment settings.
                 </div>
               </div>
             )}
@@ -1326,9 +1453,9 @@ function DashboardContent() {
 
                 <div className="space-y-1.5 bg-white p-3 rounded-lg border border-emerald-200 font-mono text-[11px] text-zinc-800">
                   <div className="flex items-center justify-between">
-                    <span className="font-sans font-bold text-zinc-500">Repository:</span>
+                    <span className="font-sans font-bold text-zinc-500">Storage Target:</span>
                     <span className="font-bold text-zinc-950">
-                      {activeDeploymentSite.githubRepoUrl || `https://github.com/mdyahhya/${activeDeploymentSite.slug}`}
+                      Linkal Secure Cloud &bull; {activeDeploymentSite.slug}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -1365,6 +1492,21 @@ function DashboardContent() {
                   >
                     Copy Live Link
                   </button>
+                </div>
+
+                {/* Embedded Live Preview in Modal */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-xs text-zinc-600 font-medium">
+                    <span>Live Store Preview:</span>
+                    <span className="text-[10px] text-zinc-400">Interactive</span>
+                  </div>
+                  <div className="w-full h-52 sm:h-60 rounded-xl overflow-hidden border border-zinc-300 bg-white shadow-inner">
+                    <iframe
+                      src={`/api/sites/${activeDeploymentSite.id}/preview`}
+                      className="w-full h-full border-0"
+                      title="Published Preview"
+                    />
+                  </div>
                 </div>
               </div>
             )}
