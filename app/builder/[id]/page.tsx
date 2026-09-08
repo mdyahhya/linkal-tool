@@ -138,6 +138,11 @@ export default function BuilderPage() {
 
       setSite(data.site);
       setDeploymentLogs(data.site.deploymentLogs || []);
+
+      // Auto-redirect to My Sites on dashboard after publishing
+      setTimeout(() => {
+        router.push(`/dashboard?published=${site.id}`);
+      }, 1500);
     } catch (err: any) {
       alert(err.message || 'Publishing failed');
     } finally {
@@ -818,18 +823,25 @@ export default function BuilderPage() {
               {deploying && (
                 <div className="flex items-center gap-2 text-amber-400 pt-2 border-t border-zinc-800">
                   <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-                  <span>Processing GitHub, Vercel &amp; Cloudflare...</span>
+                  <span>Publishing to Linkal servers...</span>
+                </div>
+              )}
+
+              {!deploying && deploymentLogs.length > 0 && (
+                <div className="flex items-center gap-2 text-emerald-400 pt-2 border-t border-zinc-800 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>Website published! Opening My Sites...</span>
                 </div>
               )}
             </div>
 
             <div className="pt-2 flex justify-end">
               <button
-                onClick={() => setShowPublishModal(false)}
+                onClick={() => router.push(`/dashboard?published=${site.id}`)}
                 disabled={deploying}
                 className="px-4 py-2 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all disabled:opacity-50"
               >
-                {deploying ? 'Deploying...' : 'Done'}
+                {deploying ? 'Publishing...' : 'Go to My Sites'}
               </button>
             </div>
           </div>

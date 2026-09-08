@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Globe,
   Plus,
@@ -39,8 +39,10 @@ import {
 } from 'lucide-react';
 import { SiteData, SiteType, SiteStatus } from '@/types/site';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const publishedId = searchParams.get('published');
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -186,6 +188,8 @@ export default function DashboardPage() {
     const matchesStatus = statusFilter === 'all' || site.status === statusFilter;
     return matchesSearch && matchesType && matchesStatus;
   });
+
+  const recentlyPublishedSite = publishedId ? sites.find((s) => s.id === publishedId) : null;
 
   const stats = {
     total: sites.length,
@@ -454,15 +458,47 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Recently Published Success Banner */}
+        {recentlyPublishedSite && (
+          <div className="bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-5 shadow-sm space-y-3 animate-in slide-in-from-top duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-emerald-950 font-extrabold text-sm">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>Storefront Published &amp; Added to My Sites!</span>
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-900 font-bold text-[11px]">
+                LIVE NOW
+              </span>
+            </div>
+            <p className="text-xs text-emerald-900 font-medium">
+              Your site <strong>&quot;{recentlyPublishedSite.name}&quot;</strong> is now active on Linkal servers and accessible worldwide.
+            </p>
+            <div className="flex items-center gap-3 pt-1">
+              <a
+                href={recentlyPublishedSite.liveUrl || `https://${recentlyPublishedSite.slug}.dominal.in`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-xs"
+              >
+                <span>Visit Live Storefront</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </a>
+              <span className="font-mono text-xs font-bold text-emerald-800">
+                https://{recentlyPublishedSite.slug}.dominal.in
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Banner / Header Title */}
         <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-800 text-[11px] font-bold uppercase tracking-wider mb-2">
               <Sparkles className="w-3 h-3 text-amber-500 fill-amber-500" /> Platform Owner Control Panel
             </div>
-            <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">Customer Sites Overview</h1>
+            <h1 className="text-2xl font-extrabold text-zinc-950 tracking-tight">My Sites</h1>
             <p className="text-xs text-zinc-500 font-medium mt-1">
-              Create, edit, preview and one-click deploy high-converting static storefronts with direct WhatsApp CTAs.
+              Manage, customize, and view all your published and draft storefronts.
             </p>
           </div>
 
@@ -1133,5 +1169,19 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          <div className="w-8 h-8 border-3 border-zinc-950 border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }

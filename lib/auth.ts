@@ -52,8 +52,20 @@ export async function clearSession(): Promise<void> {
   cookieStore.delete(COOKIE_NAME);
 }
 
-export function verifyCredentials(email: string, pass: string): boolean {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@linkal.in';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'linkal123';
-  return email.trim().toLowerCase() === adminEmail.trim().toLowerCase() && pass === adminPassword;
+export function verifyCredentials(emailOrUser: string, pass: string): boolean {
+  const expectedUser = (
+    process.env.USER_NAME ||
+    process.env.ADMIN_EMAIL ||
+    'admin@linkal.in'
+  ).trim();
+  const expectedPass = (
+    process.env.PASS ||
+    process.env.ADMIN_PASSWORD ||
+    'linkal123'
+  ).trim();
+
+  return (
+    emailOrUser.trim().toLowerCase() === expectedUser.toLowerCase() &&
+    pass.trim() === expectedPass
+  );
 }

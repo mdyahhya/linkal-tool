@@ -3,27 +3,29 @@ import { verifyCredentials, createSession } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
-    const { email, password } = await request.json();
+    const body = await request.json();
+    const username = body.username || body.email;
+    const password = body.password || body.pass;
 
-    if (!email || !password) {
+    if (!username || !password) {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Username and password are required' },
         { status: 400 }
       );
     }
 
-    const isValid = verifyCredentials(email, password);
+    const isValid = verifyCredentials(username, password);
     if (!isValid) {
       return NextResponse.json(
-        { error: 'Invalid owner email or password' },
+        { error: 'Invalid username or password' },
         { status: 401 }
       );
     }
 
-    await createSession(email);
+    await createSession(username);
     return NextResponse.json({
       success: true,
-      user: { email, role: 'owner' },
+      user: { email: username, role: 'owner' },
     });
   } catch (error: any) {
     return NextResponse.json(
