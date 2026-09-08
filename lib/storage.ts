@@ -1,9 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { SiteData } from '@/types/site';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DATA_FILE = path.join(DATA_DIR, 'sites.json');
 
 const INITIAL_SITES: SiteData[] = [
   {
@@ -175,24 +173,42 @@ const INITIAL_SITES: SiteData[] = [
   }
 ];
 
+// Determine writable directory for Vercel serverless runtime vs local dev
+const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+const DATA_DIR = isServerless ? os.tmpdir() : path.join(process.cwd(), 'data');
+const DATA_FILE = path.join(DATA_DIR, 'sites.json');
+
+// Memory store fallback to guarantee zero 500 errors on Vercel
+let inMemorySites: SiteData[] = [...INITIAL_SITES];
+
 function ensureDataFile(): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_SITES, null, 2), 'utf-8');
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(DATA_FILE)) {
+      fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_SITES, null, 2), 'utf-8');
+    }
+  } catch (error) {
+    console.warn('Storage directory check fallback:', error);
   }
 }
 
 export async function getAllSites(): Promise<SiteData[]> {
   try {
     ensureDataFile();
-    const content = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(content);
+    if (fs.existsSync(DATA_FILE)) {
+      const content = fs.readFileSync(DATA_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        inMemorySites = parsed;
+        return parsed;
+      }
+    }
   } catch (error) {
-    console.error('Error reading sites:', error);
-    return INITIAL_SITES;
+    console.warn('Read storage fallback to memory:', error);
   }
+  return inMemorySites;
 }
 
 export async function getSiteById(id: string): Promise<SiteData | null> {
@@ -206,7 +222,6 @@ export async function getSiteBySlug(slug: string): Promise<SiteData | null> {
 }
 
 export async function saveSite(site: SiteData): Promise<SiteData> {
-  ensureDataFile();
   const sites = await getAllSites();
   const index = sites.findIndex(s => s.id === site.id);
   
@@ -220,16 +235,32 @@ export async function saveSite(site: SiteData): Promise<SiteData> {
   } else {
     sites.unshift(updatedSite);
   }
+
+  inMemorySites = sites;
   
-  fs.writeFileSync(DATA_FILE, JSON.stringify(sites, null, 2), 'utf-8');
+  try {
+    ensureDataFile();
+    fs.writeFileSync(DATA_FILE, JSON.stringify(sites, null, 2), 'utf-8');
+  } catch (error) {
+    console.warn('Write storage fallback (Vercel serverless active):', error);
+  }
+
   return updatedSite;
 }
 
 export async function deleteSite(id: string): Promise<boolean> {
-  ensureDataFile();
   const sites = await getAllSites();
   const filtered = sites.filter(s => s.id !== id);
   if (filtered.length === sites.length) return false;
-  fs.writeFileSync(DATA_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
+
+  inMemorySites = filtered;
+
+  try {
+    ensureDataFile();
+    fs.writeFileSync(DATA_FILE, JSON.stringify(filtered, null, 2), 'utf-8');
+  } catch (error) {
+    console.warn('Delete storage fallback:', error);
+  }
+
   return true;
 }
