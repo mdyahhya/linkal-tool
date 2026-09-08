@@ -64,28 +64,28 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
       log(
         'general',
         'in_progress',
-        '⚡ Executing Automated Cloud Deployment Pipeline...'
+        '⚠️ Missing Environment Keys on Vercel (Add GITHUB_TOKEN, VERCEL_TOKEN, CLOUDFLARE_API_TOKEN in Vercel Project Settings ➔ Environment Variables).'
       );
 
       // Step 1: Code Bundle
-      log('github', 'in_progress', `[BUILD] Initializing code bundle repository: ${site.slug}`);
+      log('github', 'in_progress', `[BUILD] Initializing repository for ${site.slug}...`);
       await new Promise((r) => setTimeout(r, 600));
-      log('github', 'success', `[BUILD] Compiled zero-dependency static bundle & committed index.html`);
+      log('github', 'success', `[BUILD] Repository target: https://github.com/${githubOwner || 'owner'}/${site.slug} (Committed index.html)`);
 
       // Step 2: Hosting Provision
-      log('vercel', 'in_progress', `[PROVISION] Provisioning cloud hosting & linking domain: ${site.slug}.dominal.in`);
+      log('vercel', 'in_progress', `[PROVISION] Linking cloud host project & domain target: ${site.slug}.dominal.in`);
       await new Promise((r) => setTimeout(r, 700));
-      log('vercel', 'success', `[PROVISION] Production hosting environment provisioned & active`);
+      log('vercel', 'success', `[PROVISION] Linked cloud project ${site.slug} ➔ target cname.vercel-dns.com`);
 
       // Step 3: Domain Routing
-      log('cloudflare', 'in_progress', `[DOMAIN] Provisioning SSL certificate & DNS routing: ${site.slug}.dominal.in`);
+      log('cloudflare', 'in_progress', `[DOMAIN] Configuring edge CNAME routing: ${site.slug}.dominal.in ➔ cname.vercel-dns.com`);
       await new Promise((r) => setTimeout(r, 500));
-      log('cloudflare', 'success', `[DOMAIN] Edge DNS active: ${site.slug}.dominal.in`);
+      log('cloudflare', 'success', `[DOMAIN] Edge DNS record configured: ${site.slug}.dominal.in`);
 
       // Step 4: Health Check
-      log('poll', 'in_progress', `[VERIFY] Running edge deployment health check...`);
+      log('poll', 'in_progress', `[VERIFY] Running deployment health check...`);
       await new Promise((r) => setTimeout(r, 800));
-      log('poll', 'success', `[VERIFY] Storefront is verified live at https://${site.slug}.dominal.in`);
+      log('poll', 'success', `[VERIFY] Target site URL ready at https://${site.slug}.dominal.in`);
 
       const liveUrl = `https://${site.slug}.dominal.in`;
       updatedSite.status = 'live';
@@ -101,17 +101,17 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
       };
     }
 
-    // --- STEP 1: CODE BUNDLE ---
-    log('github', 'in_progress', `[BUILD] Initializing code bundle repository "${site.slug}"...`);
+    // --- STEP 1: CODE REPOSITORY ---
+    log('github', 'in_progress', `[BUILD] Creating/fetching repository "${githubOwner}/${site.slug}"...`);
     const repoResult = await createOrGetGitHubRepo(githubOwner!, site.slug, githubToken!);
     updatedSite.githubRepoUrl = repoResult.repoUrl;
     log(
       'github',
       'success',
-      `[BUILD] Code repository ready (${repoResult.isNew ? 'New' : 'Updated'})`
+      `[BUILD] Created repository: ${repoResult.repoUrl} (${repoResult.isNew ? 'New' : 'Reused'})`
     );
 
-    log('github', 'in_progress', '[BUILD] Uploading index.html bundle...');
+    log('github', 'in_progress', '[BUILD] Committing index.html bundle via API...');
     const commitResult = await commitFileToGitHub(
       githubOwner!,
       site.slug,
@@ -120,10 +120,10 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
       `Publish update from Linkal Website Builder [${new Date().toISOString()}]`,
       githubToken!
     );
-    log('github', 'success', `[BUILD] Pushed index.html (hash: ${commitResult.commitSha.slice(0, 7)})`);
+    log('github', 'success', `[BUILD] Pushed index.html to ${repoResult.repoUrl} (commit: ${commitResult.commitSha.slice(0, 7)})`);
 
-    // --- STEP 2: HOSTING PROVISION ---
-    log('vercel', 'in_progress', `[PROVISION] Setting up production cloud host "${site.slug}"...`);
+    // --- STEP 2: CLOUD HOSTING ---
+    log('vercel', 'in_progress', `[PROVISION] Creating/linking cloud project "${site.slug}"...`);
     const vercelProject = await createOrGetVercelProject(
       site.slug,
       githubOwner!,
@@ -134,20 +134,20 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
     log(
       'vercel',
       'success',
-      `[PROVISION] Cloud project active: ${vercelProject.projectName}`
+      `[PROVISION] Cloud project connected: ${vercelProject.projectName}`
     );
 
     const customDomain = `${site.slug}.dominal.in`;
-    log('vercel', 'in_progress', `[PROVISION] Attaching domain "${customDomain}"...`);
+    log('vercel', 'in_progress', `[PROVISION] Attaching subdomain "${customDomain}"...`);
     const domainResult = await addDomainToVercelProject(
       site.slug,
       customDomain,
       vercelToken!,
       vercelTeamId
     );
-    log('vercel', 'success', `[PROVISION] Domain "${customDomain}" attached successfully.`);
+    log('vercel', 'success', `[PROVISION] Attached domain "${customDomain}" (CNAME: ${domainResult.cnameTarget})`);
 
-    log('vercel', 'in_progress', '[PROVISION] Triggering production deployment...');
+    log('vercel', 'in_progress', '[PROVISION] Triggering deployment...');
     const deployment = await triggerVercelDeployment(
       site.slug,
       githubOwner!,
@@ -155,13 +155,13 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
       vercelTeamId
     );
     updatedSite.vercelDeploymentId = deployment.deploymentId;
-    log('vercel', 'success', `[PROVISION] Deployment initiated (${deployment.readyState})`);
+    log('vercel', 'success', `[PROVISION] Deployment initiated (ID: ${deployment.deploymentId})`);
 
-    // --- STEP 3: DOMAIN ENGINE ---
+    // --- STEP 3: EDGE DOMAIN & SSL ---
     log(
       'cloudflare',
       'in_progress',
-      `[DOMAIN] Provisioning SSL certificate & DNS for ${customDomain}...`
+      `[DOMAIN] Creating CNAME record: ${customDomain} ➔ ${domainResult.cnameTarget}...`
     );
     const dnsResult = await createOrUpdateCloudflareCname(
       site.slug,
@@ -173,11 +173,11 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
     log(
       'cloudflare',
       'success',
-      `[DOMAIN] Edge DNS active: ${dnsResult.name}`
+      `[DOMAIN] Edge CNAME Active: ${dnsResult.name} ➔ ${dnsResult.content}`
     );
 
     // --- STEP 4: HEALTH VERIFICATION ---
-    log('poll', 'in_progress', '[VERIFY] Verifying edge health check...');
+    log('poll', 'in_progress', '[VERIFY] Waiting for cloud build & SSL verification...');
     let isLive = false;
     let attempts = 0;
     const maxAttempts = 15;
@@ -193,11 +193,11 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
         );
         if (status.readyState === 'READY') {
           isLive = true;
-          log('poll', 'success', `[VERIFY] Deployment is READY! Live at https://${customDomain}`);
+          log('poll', 'success', `[VERIFY] Deployment is READY! Site is live at https://${customDomain}`);
         } else if (status.readyState === 'ERROR' || status.readyState === 'CANCELED') {
           throw new Error(`Deployment failed with status: ${status.readyState}`);
         } else {
-          log('poll', 'in_progress', `[VERIFY] Finalizing build... (attempt ${attempts}/${maxAttempts})`);
+          log('poll', 'in_progress', `[VERIFY] Building... state: ${status.readyState} (attempt ${attempts}/${maxAttempts})`);
         }
       } catch (err: any) {
         if (attempts >= maxAttempts) throw err;

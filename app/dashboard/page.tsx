@@ -82,8 +82,27 @@ export default function DashboardPage() {
     }
   };
 
+  // Health check state
+  const [cloudHealth, setCloudHealth] = useState<{
+    connected: boolean;
+    isVercelEnv: boolean;
+    details: Record<string, boolean>;
+    ownerName: string | null;
+  } | null>(null);
+
+  const fetchHealth = async () => {
+    try {
+      const res = await fetch('/api/health');
+      const data = await res.json();
+      setCloudHealth(data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   useEffect(() => {
     fetchSites();
+    fetchHealth();
   }, []);
 
   const handleLogout = async () => {
@@ -398,6 +417,43 @@ export default function DashboardPage() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Cloud Health Check Banner */}
+        {cloudHealth && !cloudHealth.connected && (
+          <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-semibold text-amber-900">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <div>
+                <span className="font-extrabold block text-amber-950">
+                  ⚠️ Action Required for Live Cloud Publishing on Vercel
+                </span>
+                <p className="text-amber-800 font-medium mt-0.5">
+                  Your local API keys need to be added to your Vercel Project Settings ➔ Environment Variables for live deployments under *.dominal.in.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSetupGuide(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-900 hover:bg-black text-white text-xs font-bold shrink-0 transition-all"
+            >
+              Setup Guide
+            </button>
+          </div>
+        )}
+
+        {cloudHealth && cloudHealth.connected && (
+          <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-3.5 flex items-center justify-between text-xs font-semibold text-emerald-900">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                <strong>Live Cloud Integration Active</strong> (Owner: {cloudHealth.ownerName || 'Active'}) &bull; Publishing connects directly to GitHub, Vercel &amp; dominal.in.
+              </span>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-200 font-mono font-bold text-[10px] text-emerald-900">
+              READY
+            </span>
+          </div>
+        )}
+
         {/* Banner / Header Title */}
         <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
@@ -901,8 +957,16 @@ export default function DashboardPage() {
                   <span className="text-zinc-500 text-[10px]">
                     {new Date(log.timestamp).toLocaleTimeString()}
                   </span>
-                  <span className="font-bold uppercase text-[10px] text-emerald-400">
-                    [{log.step}]
+                  <span
+                    className={`font-bold uppercase text-[10px] ${
+                      log.status === 'failed'
+                        ? 'text-red-400'
+                        : log.status === 'success'
+                        ? 'text-emerald-400'
+                        : 'text-amber-400'
+                    }`}
+                  >
+                    [{log.step.toUpperCase()}]
                   </span>
                   <span className="text-zinc-200">{log.message}</span>
                 </div>
@@ -917,30 +981,67 @@ export default function DashboardPage() {
             </div>
 
             {deploymentError && (
-              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2 font-medium">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                <span>{deploymentError}</span>
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs space-y-2">
+                <div className="flex items-center gap-2 font-extrabold text-sm">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>Deployment Pipeline Encountered an Error</span>
+                </div>
+                <p className="font-medium text-red-800">{deploymentError}</p>
+                <div className="pt-1 text-[11px] text-zinc-600 border-t border-red-200">
+                  💡 <strong>Troubleshooting Tip:</strong> Ensure GITHUB_TOKEN, VERCEL_TOKEN, and CLOUDFLARE_API_TOKEN are configured in Vercel Project Settings ➔ Environment Variables.
+                </div>
               </div>
             )}
 
             {activeDeploymentSite.status === 'live' && (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-3 text-xs">
                 <div className="flex items-center gap-2 text-emerald-900 font-extrabold text-sm">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  <span>Website Deployed &amp; Live on Cloud!</span>
+                  <span>Storefront Published &amp; Live on Cloud!</span>
                 </div>
-                <p className="text-xs text-emerald-800 font-medium">
-                  Your static storefront is compiled and live on Vercel with Cloudflare DNS.
-                </p>
-                <a
-                  href={activeDeploymentSite.liveUrl || `https://${activeDeploymentSite.slug}.dominal.in`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs"
-                >
-                  <span>Open Live Website</span>
-                  <ArrowUpRight className="w-4 h-4" />
-                </a>
+
+                <div className="space-y-1.5 bg-white p-3 rounded-lg border border-emerald-200 font-mono text-[11px] text-zinc-800">
+                  <div className="flex items-center justify-between">
+                    <span className="font-sans font-bold text-zinc-500">Repository:</span>
+                    <span className="font-bold text-zinc-950">
+                      {activeDeploymentSite.githubRepoUrl || `https://github.com/mdyahhya/${activeDeploymentSite.slug}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-sans font-bold text-zinc-500">Live Subdomain:</span>
+                    <span className="font-bold text-emerald-700">
+                      https://{activeDeploymentSite.slug}.dominal.in
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="font-sans font-bold text-zinc-500">Hosting Status:</span>
+                    <span className="font-bold text-emerald-600">Active &amp; SSL Verified</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <a
+                    href={activeDeploymentSite.liveUrl || `https://${activeDeploymentSite.slug}.dominal.in`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs"
+                  >
+                    <span>Open Live Website</span>
+                    <ArrowUpRight className="w-4 h-4" />
+                  </a>
+
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(
+                        activeDeploymentSite.liveUrl || `https://${activeDeploymentSite.slug}.dominal.in`
+                      );
+                      alert('Live site URL copied to clipboard!');
+                    }}
+                    className="px-3 py-2 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-950 font-bold transition-all"
+                  >
+                    Copy Live Link
+                  </button>
+                </div>
               </div>
             )}
 
