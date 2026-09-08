@@ -1,4 +1,5 @@
 export interface GitHubRepoResult {
+  repoId?: number;
   repoName: string;
   repoUrl: string;
   isNew: boolean;
@@ -24,6 +25,7 @@ export async function createOrGetGitHubRepo(
   if (checkRes.status === 200) {
     const data = await checkRes.json();
     return {
+      repoId: data.id,
       repoName: data.name,
       repoUrl: data.html_url,
       isNew: false,
@@ -54,6 +56,7 @@ export async function createOrGetGitHubRepo(
 
   const newRepo = await createRes.json();
   return {
+    repoId: newRepo.id,
     repoName: newRepo.name,
     repoUrl: newRepo.html_url,
     isNew: true,

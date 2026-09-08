@@ -147,12 +147,14 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
     );
     log('vercel', 'success', `[PROVISION] Attached domain "${customDomain}" (CNAME: ${domainResult.cnameTarget})`);
 
-    log('vercel', 'in_progress', '[PROVISION] Triggering deployment...');
+    log('vercel', 'in_progress', '[PROVISION] Triggering production deployment...');
     const deployment = await triggerVercelDeployment(
       site.slug,
       githubOwner!,
+      staticHtml,
       vercelToken!,
-      vercelTeamId
+      vercelTeamId,
+      repoResult.repoId
     );
     updatedSite.vercelDeploymentId = deployment.deploymentId;
     log('vercel', 'success', `[PROVISION] Deployment initiated (ID: ${deployment.deploymentId})`);
