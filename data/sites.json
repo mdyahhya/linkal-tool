@@ -1,5 +1,41 @@
 [
   {
+    "id": "site-1788950832034",
+    "name": "Barchi's Furniture",
+    "slug": "barchi-s-furniture",
+    "type": "ecommerce",
+    "status": "draft",
+    "whatsappNumber": "919322686505",
+    "defaultWhatsappMessage": "Hi Barchi's Furniture, I saw your website and would like to place an order!",
+    "logoUrl": "https://cdn.jsdelivr.net/gh/mdyahhya/linkal-tool@main/public/uploads/1788950797191-Gemini_Generated_Image_2d88o22d88o22d88-removebg-preview.png",
+    "themeColor": "#059669",
+    "fontFamily": "Inter",
+    "bannerSlider": [
+      {
+        "id": "slide-1",
+        "imageUrl": "https://cdn.jsdelivr.net/gh/mdyahhya/linkal-tool@main/public/uploads/1788950765060-images__7_.jpg",
+        "title": "Chairs",
+        "subtitle": "Very bad chair , for bugs",
+        "ctaText": "Chat on WhatsApp"
+      }
+    ],
+    "sliderAutoRotateSeconds": 4,
+    "products": [
+      {
+        "id": "prod-1",
+        "name": "bed",
+        "price": "4500",
+        "currency": "₹",
+        "description": "Premium quality handcrafted product with instant doorstep delivery.",
+        "imageUrl": "https://cdn.jsdelivr.net/gh/mdyahhya/linkal-tool@main/public/uploads/1788950821188-istockphoto-2213411469-612x612.jpg",
+        "badge": "Featured",
+        "inStock": true
+      }
+    ],
+    "createdAt": "2026-09-09T10:47:12.034Z",
+    "updatedAt": "2026-09-09T10:47:12.034Z"
+  },
+  {
     "id": "site-1788941919309",
     "name": "Adil Portfolio ",
     "slug": "adil-portfolio",
