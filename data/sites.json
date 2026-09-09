@@ -4,7 +4,7 @@
     "name": "Adil Portfolio ",
     "slug": "adil-portfolio",
     "type": "portfolio",
-    "status": "deploying",
+    "status": "live",
     "whatsappNumber": "918485022484",
     "defaultWhatsappMessage": "Hi Adil Portfolio , I saw your website and would like to place an order!",
     "themeColor": "#4f46e5",
@@ -44,8 +44,75 @@
       }
     ],
     "createdAt": "2026-09-09T08:18:39.309Z",
-    "updatedAt": "2026-09-09T08:18:57.951Z",
-    "deploymentLogs": []
+    "updatedAt": "2026-09-09T08:19:07.956Z",
+    "deploymentLogs": [
+      {
+        "step": "general",
+        "status": "in_progress",
+        "message": "Compiling zero-dependency static HTML bundle...",
+        "timestamp": "2026-09-09T08:18:58.816Z"
+      },
+      {
+        "step": "general",
+        "status": "success",
+        "message": "Generated self-contained storefront (25537 bytes).",
+        "timestamp": "2026-09-09T08:18:58.817Z"
+      },
+      {
+        "step": "github",
+        "status": "in_progress",
+        "message": "Saving code to Linkal servers (adil-portfolio)...",
+        "timestamp": "2026-09-09T08:18:58.817Z"
+      },
+      {
+        "step": "github",
+        "status": "success",
+        "message": "Saved code bundle to Linkal servers.",
+        "timestamp": "2026-09-09T08:19:03.585Z"
+      },
+      {
+        "step": "vercel",
+        "status": "in_progress",
+        "message": "Deploying to Linkal servers...",
+        "timestamp": "2026-09-09T08:19:03.585Z"
+      },
+      {
+        "step": "vercel",
+        "status": "success",
+        "message": "Deployed successfully to Linkal servers.",
+        "timestamp": "2026-09-09T08:19:05.217Z"
+      },
+      {
+        "step": "cloudflare",
+        "status": "in_progress",
+        "message": "Connecting to Linkal domain servers (adil-portfolio.dominal.in)...",
+        "timestamp": "2026-09-09T08:19:05.217Z"
+      },
+      {
+        "step": "cloudflare",
+        "status": "success",
+        "message": "Connected to Linkal domain servers: https://adil-portfolio.dominal.in",
+        "timestamp": "2026-09-09T08:19:05.655Z"
+      },
+      {
+        "step": "poll",
+        "status": "in_progress",
+        "message": "Verifying Linkal domain & SSL routing...",
+        "timestamp": "2026-09-09T08:19:05.655Z"
+      },
+      {
+        "step": "poll",
+        "status": "success",
+        "message": "Site is verified live at https://adil-portfolio.dominal.in",
+        "timestamp": "2026-09-09T08:19:07.956Z"
+      }
+    ],
+    "githubRepoUrl": "https://github.com/mdyahhya/adil-portfolio",
+    "vercelProjectId": "prj_0kGSIz7MJb4XcHlknTc6kS9O9cCu",
+    "vercelDeploymentId": "dpl_94ZGq7eFhSCPbe4GvpGX8SdgZr3b",
+    "cloudflareDnsId": "1ad037d1eac5e540fce4e44b2e25cdf2",
+    "liveUrl": "https://adil-portfolio.dominal.in",
+    "lastDeployedAt": "2026-09-09T08:19:07.956Z"
   },
   {
     "id": "site-1788899439940",
