@@ -4,7 +4,7 @@
     "name": "Barchi's Furniture",
     "slug": "barchi-s-furniture",
     "type": "ecommerce",
-    "status": "draft",
+    "status": "deploying",
     "whatsappNumber": "919322686505",
     "defaultWhatsappMessage": "Hi Barchi's Furniture, I saw your website and would like to place an order!",
     "logoUrl": "https://cdn.jsdelivr.net/gh/mdyahhya/linkal-tool@main/public/uploads/1788950797191-Gemini_Generated_Image_2d88o22d88o22d88-removebg-preview.png",
@@ -33,7 +33,8 @@
       }
     ],
     "createdAt": "2026-09-09T10:47:12.034Z",
-    "updatedAt": "2026-09-09T10:47:29.598Z"
+    "updatedAt": "2026-09-09T10:47:30.267Z",
+    "deploymentLogs": []
   },
   {
     "id": "site-1788941919309",
