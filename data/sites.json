@@ -1,5 +1,52 @@
 [
   {
+    "id": "site-1788941919309",
+    "name": "Adil Portfolio ",
+    "slug": "adil-portfolio",
+    "type": "portfolio",
+    "status": "draft",
+    "whatsappNumber": "918485022484",
+    "defaultWhatsappMessage": "Hi Adil Portfolio , I saw your website and would like to place an order!",
+    "themeColor": "#4f46e5",
+    "fontFamily": "Inter",
+    "bannerSlider": [
+      {
+        "id": "slide-1",
+        "imageUrl": "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=1600&auto=format&fit=crop&q=80",
+        "title": "Welcome to Adil Portfolio ",
+        "subtitle": "Explore our exclusive offerings and order directly on WhatsApp with instant support.",
+        "ctaText": "Chat on WhatsApp"
+      }
+    ],
+    "sliderAutoRotateSeconds": 4,
+    "portfolioSkills": [
+      {
+        "id": "sk-1",
+        "name": "Product Strategy",
+        "level": "Expert"
+      },
+      {
+        "id": "sk-2",
+        "name": "Creative Direction",
+        "level": "Advanced"
+      }
+    ],
+    "portfolioProjects": [
+      {
+        "id": "proj-1",
+        "title": "Signature Collection Item",
+        "description": "Premium quality handcrafted product with instant doorstep delivery.",
+        "imageUrl": "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&auto=format&fit=crop&q=80",
+        "tags": [
+          "Branding",
+          "Strategy"
+        ]
+      }
+    ],
+    "createdAt": "2026-09-09T08:18:39.309Z",
+    "updatedAt": "2026-09-09T08:18:39.309Z"
+  },
+  {
     "id": "site-1788899439940",
     "name": "Solapur Shop",
     "slug": "solapurshop",
