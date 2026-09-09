@@ -59,6 +59,28 @@ export interface DeploymentLogEntry {
   details?: any;
 }
 
+export interface TrustBadgeItem {
+  id: string;
+  icon: 'truck' | 'shield' | 'clock' | 'refresh' | 'star' | 'heart';
+  title: string;
+  subtitle: string;
+}
+
+export interface ReviewItem {
+  id: string;
+  reviewerName: string;
+  rating: number;
+  comment: string;
+  location?: string;
+  verifiedBuyer?: boolean;
+}
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
 export interface SiteData {
   id: string;
   name: string;
@@ -71,6 +93,15 @@ export interface SiteData {
   themeColor: string; // hex e.g. '#2563eb'
   fontFamily: 'Inter' | 'Plus Jakarta Sans' | 'Outfit' | 'Roboto' | 'Poppins';
   
+  // Header customization
+  headerCtaText?: string;
+
+  // Announcement Ticker
+  announcementEnabled?: boolean;
+  announcementText?: string;
+  announcementBgColor?: string;
+  announcementTextColor?: string;
+
   // Banner slider
   bannerSlider: BannerSlide[];
   sliderAutoRotateSeconds?: number;
@@ -87,6 +118,34 @@ export interface SiteData {
   portfolioProjects?: PortfolioProject[];
   portfolioRoleTitle?: string;
   portfolioAvatarUrl?: string;
+
+  // Trust Badges
+  trustBadgesEnabled?: boolean;
+  trustBadges?: TrustBadgeItem[];
+
+  // Reviews & Testimonials
+  reviewsEnabled?: boolean;
+  reviewsTitle?: string;
+  reviewsSubtitle?: string;
+  reviews?: ReviewItem[];
+
+  // FAQ
+  faqEnabled?: boolean;
+  faqTitle?: string;
+  faqs?: FaqItem[];
+
+  // About Us / Brand Story
+  aboutEnabled?: boolean;
+  aboutTitle?: string;
+  aboutText?: string;
+  aboutImageUrl?: string;
+
+  // Footer & Social
+  footerBlurb?: string;
+  footerCopyright?: string;
+  footerInstagramUrl?: string;
+  footerAddress?: string;
+  footerEmail?: string;
   
   // Deployment metadata
   liveUrl?: string; // e.g. 'https://myshop.dominal.in'

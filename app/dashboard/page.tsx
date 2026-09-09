@@ -39,6 +39,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { SiteData, SiteType, SiteStatus } from '@/types/site';
+import { generateQrSvg, downloadQrPng, downloadQrSvg } from '@/lib/qrcode';
 
 function Upload({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   return (
@@ -67,6 +68,19 @@ function CheckIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   );
 }
 
+function QrIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="3" height="3" />
+      <rect x="18" y="18" width="3" height="3" />
+      <rect x="18" y="14" width="3" height="3" />
+    </svg>
+  );
+}
+
 function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -88,6 +102,24 @@ function DashboardContent() {
   const [deploying, setDeploying] = useState(false);
   const [deploymentError, setDeploymentError] = useState<string | null>(null);
   const [previewSite, setPreviewSite] = useState<SiteData | null>(null);
+  const [qrModalSite, setQrModalSite] = useState<SiteData | null>(null);
+  const [propagationSeconds, setPropagationSeconds] = useState(30);
+
+  // 30-Second Propagation Countdown Timer
+  useEffect(() => {
+    let timer: any;
+    if (deploying) {
+      setPropagationSeconds(30);
+      timer = setInterval(() => {
+        setPropagationSeconds((prev) => (prev > 1 ? prev - 1 : 1));
+      }, 1000);
+    } else {
+      setPropagationSeconds(30);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [deploying]);
 
   // New site form
   const [newName, setNewName] = useState('');
@@ -933,6 +965,15 @@ function DashboardContent() {
                             </>
                           )}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setQrModalSite(site)}
+                          className="px-2 py-1 bg-white border border-emerald-200 rounded-lg text-[10px] font-bold text-emerald-800 hover:bg-emerald-100 flex items-center gap-1 transition-all"
+                          title="Generate & View QR Code"
+                        >
+                          <QrIcon className="w-3 h-3 text-emerald-700" />
+                          <span>QR</span>
+                        </button>
                         <a
                           href={site.liveUrl || `https://${site.slug}.dominal.in`}
                           target="_blank"
@@ -1000,6 +1041,14 @@ function DashboardContent() {
                     )}
 
                     <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setQrModalSite(site)}
+                        className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100"
+                        title="Website QR Code Generator"
+                      >
+                        <QrIcon className="w-3.5 h-3.5" />
+                      </button>
+
                       <button
                         onClick={() =>
                           window.open(`/api/sites/${site.id}/export`, '_blank')
@@ -1369,6 +1418,105 @@ function DashboardContent() {
         </div>
       )}
 
+      {/* Standalone QR Code Modal */}
+      {qrModalSite && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div
+            className="fixed inset-0 drawer-backdrop"
+            onClick={() => setQrModalSite(null)}
+          />
+          <div className="relative z-10 w-full max-w-md bg-white rounded-2xl border border-zinc-200 shadow-2xl p-5 sm:p-6 space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-zinc-950 text-white flex items-center justify-center">
+                  <QrIcon className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-zinc-950">
+                    Storefront QR Code
+                  </h3>
+                  <p className="text-xs text-zinc-500 font-mono">
+                    https://{qrModalSite.slug}.dominal.in
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setQrModalSite(null)}
+                className="p-1.5 rounded-lg border border-zinc-200 text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center justify-center p-5 bg-zinc-50 rounded-2xl border border-zinc-200 space-y-3">
+              <div
+                className="p-3 bg-white rounded-xl shadow-xs border border-zinc-200"
+                dangerouslySetInnerHTML={{
+                  __html: generateQrSvg(
+                    qrModalSite.liveUrl || `https://${qrModalSite.slug}.dominal.in`,
+                    220
+                  ),
+                }}
+              />
+              <div className="text-center">
+                <span className="text-xs font-mono font-bold text-zinc-900 block">
+                  https://{qrModalSite.slug}.dominal.in
+                </span>
+                <span className="text-[11px] text-zinc-500 font-medium">
+                  Scan to instantly open on any smartphone camera
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadQrPng(
+                      qrModalSite.liveUrl || `https://${qrModalSite.slug}.dominal.in`,
+                      `${qrModalSite.slug}-qr.png`,
+                      800
+                    )
+                  }
+                  className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-zinc-950 hover:bg-black text-white text-xs font-bold transition-all shadow-xs"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PNG (HD)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadQrSvg(
+                      qrModalSite.liveUrl || `https://${qrModalSite.slug}.dominal.in`,
+                      `${qrModalSite.slug}-qr.svg`
+                    )
+                  }
+                  className="inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-950 text-xs font-bold transition-all"
+                >
+                  <Download className="w-3.5 h-3.5 text-zinc-700" />
+                  <span>Download SVG</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    qrModalSite.liveUrl || `https://${qrModalSite.slug}.dominal.in`
+                  );
+                  alert('Live link copied to clipboard!');
+                }}
+                className="w-full py-2 px-3 rounded-xl border border-zinc-200 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-bold transition-all"
+              >
+                Copy Direct Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal 2: Deployment Progress / Logs Modal */}
       {activeDeploymentSite && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1401,8 +1549,87 @@ function DashboardContent() {
               )}
             </div>
 
+            {/* 30-Second Propagation Progress Timer */}
+            {deploying && (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-5 h-5 rounded-full border-2 border-amber-600 border-t-transparent animate-spin shrink-0" />
+                    <div>
+                      <span className="text-xs font-bold text-amber-950 block">
+                        Publishing &amp; Configuring SSL (~{propagationSeconds}s remaining)
+                      </span>
+                      <span className="text-[11px] text-amber-800 font-medium">
+                        Cloud DNS routing &amp; automated zero-config certificate issuance
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-mono font-black text-amber-900 bg-amber-200/80 px-2.5 py-1 rounded-lg shrink-0">
+                    {Math.min(30, 30 - propagationSeconds + 1)}s / 30s
+                  </span>
+                </div>
+
+                {/* Animated Progress Bar */}
+                <div className="w-full bg-amber-200/70 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className="bg-amber-600 h-full rounded-full transition-all duration-1000 ease-linear"
+                    style={{
+                      width: `${Math.min(
+                        100,
+                        Math.round(((30 - propagationSeconds) / 30) * 100)
+                      )}%`,
+                    }}
+                  />
+                </div>
+
+                {/* Milestones */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] font-bold">
+                  <div
+                    className={`p-2 rounded-lg border flex items-center gap-1.5 ${
+                      propagationSeconds <= 28
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                        : 'bg-white border-amber-200 text-zinc-500'
+                    }`}
+                  >
+                    <span>{propagationSeconds <= 28 ? '✓' : '1.'} HTML Bundle</span>
+                  </div>
+                  <div
+                    className={`p-2 rounded-lg border flex items-center gap-1.5 ${
+                      propagationSeconds <= 20
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                        : 'bg-white border-amber-200 text-zinc-500'
+                    }`}
+                  >
+                    <span>{propagationSeconds <= 20 ? '✓' : '2.'} Cloud Push</span>
+                  </div>
+                  <div
+                    className={`p-2 rounded-lg border flex items-center gap-1.5 ${
+                      propagationSeconds <= 10
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                        : 'bg-white border-amber-200 text-zinc-500'
+                    }`}
+                  >
+                    <span>{propagationSeconds <= 10 ? '✓' : '3.'} DNS Routing</span>
+                  </div>
+                  <div
+                    className={`p-2 rounded-lg border flex items-center gap-1.5 ${
+                      propagationSeconds <= 2
+                        ? 'bg-emerald-100 border-emerald-300 text-emerald-900'
+                        : 'bg-white border-amber-200 text-zinc-500'
+                    }`}
+                  >
+                    <span>{propagationSeconds <= 2 ? '✓' : '4.'} SSL Verified</span>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-amber-800 font-medium">
+                  💡 Global DNS and SSL propagation take approximately 30 seconds for new or modified records.
+                </p>
+              </div>
+            )}
+
             {/* Logs List */}
-            <div className="bg-zinc-950 rounded-xl p-4 font-mono text-xs text-zinc-300 max-h-72 overflow-y-auto space-y-2 border border-zinc-800">
+            <div className="bg-zinc-950 rounded-xl p-4 font-mono text-xs text-zinc-300 max-h-56 overflow-y-auto space-y-2 border border-zinc-800">
               {activeDeploymentSite.deploymentLogs?.map((log, i) => (
                 <div key={i} className="flex items-start gap-2">
                   <span className="text-zinc-500 text-[10px]">
@@ -1494,13 +1721,61 @@ function DashboardContent() {
                   </button>
                 </div>
 
+                {/* Inline QR Code Export Box */}
+                <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-emerald-200">
+                  <div
+                    className="p-1 bg-white rounded-lg border border-zinc-200 shrink-0"
+                    dangerouslySetInnerHTML={{
+                      __html: generateQrSvg(activeDeploymentSite.liveUrl || `https://${activeDeploymentSite.slug}.dominal.in`, 76),
+                    }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-950">
+                      <QrIcon className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Website QR Code Ready</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                      Use for packaging, stickers, or store flyers.
+                    </p>
+                    <div className="flex items-center gap-2 pt-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadQrPng(
+                            activeDeploymentSite.liveUrl || `https://${activeDeploymentSite.slug}.dominal.in`,
+                            `${activeDeploymentSite.slug}-qr.png`,
+                            800
+                          )
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-zinc-950 hover:bg-black text-white text-[10px] font-bold inline-flex items-center gap-1 transition-all shadow-xs"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Download PNG</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          downloadQrSvg(
+                            activeDeploymentSite.liveUrl || `https://${activeDeploymentSite.slug}.dominal.in`,
+                            `${activeDeploymentSite.slug}-qr.svg`
+                          )
+                        }
+                        className="px-2.5 py-1 rounded-lg border border-zinc-300 bg-white hover:bg-zinc-100 text-zinc-800 text-[10px] font-bold inline-flex items-center gap-1 transition-all"
+                      >
+                        <Download className="w-3 h-3 text-zinc-600" />
+                        <span>Download SVG</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Embedded Live Preview in Modal */}
                 <div className="space-y-1.5 pt-1">
                   <div className="flex items-center justify-between text-xs text-zinc-600 font-medium">
                     <span>Live Store Preview:</span>
                     <span className="text-[10px] text-zinc-400">Interactive</span>
                   </div>
-                  <div className="w-full h-52 sm:h-60 rounded-xl overflow-hidden border border-zinc-300 bg-white shadow-inner">
+                  <div className="w-full h-48 sm:h-56 rounded-xl overflow-hidden border border-zinc-300 bg-white shadow-inner">
                     <iframe
                       src={`/api/sites/${activeDeploymentSite.id}/preview`}
                       className="w-full h-full border-0"

@@ -13,6 +13,153 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#039;');
 }
 
+function getTrustBadgeIconSvg(icon?: string): string {
+  switch (icon) {
+    case 'truck':
+      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>';
+    case 'clock':
+      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+    case 'refresh':
+      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>';
+    case 'star':
+      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
+    case 'heart':
+      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>';
+    case 'shield':
+    default:
+      return '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+  }
+}
+
+function renderTrustBadgesHtml(site: SiteData): string {
+  if (site.trustBadgesEnabled === false) return '';
+  const badges = (site.trustBadges && site.trustBadges.length > 0)
+    ? site.trustBadges
+    : [
+        { id: 'tb-1', icon: 'shield' as const, title: '100% Authentic', subtitle: 'Curated Premium Selection' },
+        { id: 'tb-2', icon: 'truck' as const, title: 'Fast Doorstep Shipping', subtitle: 'Safe & Express Transit' },
+        { id: 'tb-3', icon: 'clock' as const, title: 'WhatsApp Direct Support', subtitle: 'Instant Seller Communication' },
+        { id: 'tb-4', icon: 'refresh' as const, title: 'Easy Exchanges', subtitle: 'Hassle-Free Guarantee' },
+      ];
+
+  return `
+    <section class="features-bar">
+      <div class="container features-grid">
+        ${badges.map(b => `
+          <div class="feature-item">
+            <span class="feature-icon">${getTrustBadgeIconSvg(b.icon)}</span>
+            <div><strong>${escapeHtml(b.title)}</strong><p>${escapeHtml(b.subtitle)}</p></div>
+          </div>
+        `).join('\n')}
+      </div>
+    </section>
+  `;
+}
+
+function renderReviewsHtml(site: SiteData): string {
+  if (site.reviewsEnabled === false) return '';
+  const reviews = (site.reviews && site.reviews.length > 0)
+    ? site.reviews
+    : (site.type === 'portfolio' ? [
+        { id: 'r-1', reviewerName: 'Arjun Mehta', rating: 5, comment: 'Incredible design sense and attention to detail. Delivered our project ahead of schedule with flawless precision.', location: 'Founder, NextWave' },
+        { id: 'r-2', reviewerName: 'Pooja Sharma', rating: 5, comment: 'Transformed our brand identity completely. Seamless communication on WhatsApp made everything effortless.', location: 'Product Lead, Studio X' },
+      ] : [
+        { id: 'r-1', reviewerName: 'Rohan Deshmukh', rating: 5, comment: 'Super fast ordering through WhatsApp! The item quality exceeded expectations and arrived in 2 days.', location: 'Verified Buyer, Mumbai' },
+        { id: 'r-2', reviewerName: 'Sneha Roy', rating: 5, comment: 'Genuine products, responsive seller, and great packaging. 10/10 recommend shopping here!', location: 'Verified Buyer, Bangalore' },
+        { id: 'r-3', reviewerName: 'Vikram Singh', rating: 5, comment: 'Direct contact with the merchant made sizing questions so simple. Will definitely purchase again.', location: 'Verified Buyer, Delhi' },
+      ]);
+
+  const title = escapeHtml(site.reviewsTitle || 'Customer Reviews & Feedback');
+  const subtitle = escapeHtml(site.reviewsSubtitle || 'Trusted by customers across India with verified 5-star experiences.');
+
+  return `
+    <section class="section reviews-section" id="reviews">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title">${title}</h2>
+          <p class="section-subtitle">${subtitle}</p>
+        </div>
+        <div class="reviews-grid">
+          ${reviews.map(r => `
+            <div class="review-card">
+              <div class="stars">${'★'.repeat(r.rating || 5)}${'☆'.repeat(Math.max(0, 5 - (r.rating || 5)))}</div>
+              <p class="review-comment">"${escapeHtml(r.comment)}"</p>
+              <div class="reviewer-meta">
+                <span class="reviewer-name">${escapeHtml(r.reviewerName)}</span>
+                ${r.location ? `<span class="reviewer-location">${escapeHtml(r.location)}</span>` : ''}
+              </div>
+            </div>
+          `).join('\n')}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderFaqHtml(site: SiteData): string {
+  if (site.faqEnabled === false) return '';
+  const faqs = (site.faqs && site.faqs.length > 0)
+    ? site.faqs
+    : [
+        { id: 'f-1', question: 'How do I place an order?', answer: 'Simply click "Order on WhatsApp" on any product. A pre-filled order message with the product name and price will automatically open in your WhatsApp, where you can finalize shipping details directly with us.' },
+        { id: 'f-2', question: 'What payment options do you support?', answer: 'We support UPI (Google Pay, PhonePe, Paytm), Bank Transfers, and Cash on Delivery (COD) in eligible pincodes across India.' },
+        { id: 'f-3', question: 'How long does delivery take?', answer: 'Orders are dispatched within 24 hours. Metro deliveries arrive in 2-3 business days, and all-India express delivery typically takes 3-5 business days with full tracking.' },
+        { id: 'f-4', question: 'What is your exchange and return policy?', answer: 'We provide a 7-day hassle-free replacement or exchange if an item is damaged or sizing needs adjustment. Just message us on WhatsApp with a photo.' },
+      ];
+
+  const title = escapeHtml(site.faqTitle || 'Frequently Asked Questions');
+
+  return `
+    <section class="section faq-section" id="faq">
+      <div class="container max-w-3xl">
+        <div class="section-header">
+          <h2 class="section-title">${title}</h2>
+          <p class="section-subtitle">Everything you need to know about ordering, delivery, and customer care.</p>
+        </div>
+        <div class="faq-accordion">
+          ${faqs.map((f, i) => `
+            <div class="faq-item ${i === 0 ? 'active' : ''}">
+              <button class="faq-question" type="button" aria-expanded="${i === 0}">
+                <span>${escapeHtml(f.question)}</span>
+                <span class="faq-icon">${i === 0 ? '−' : '+'}</span>
+              </button>
+              <div class="faq-answer">
+                <p>${escapeHtml(f.answer)}</p>
+              </div>
+            </div>
+          `).join('\n')}
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function renderAboutStoryHtml(site: SiteData): string {
+  if (!site.aboutEnabled || (!site.aboutText && !site.aboutTitle)) return '';
+  const title = escapeHtml(site.aboutTitle || `About ${site.name}`);
+  const text = escapeHtml(site.aboutText || '');
+
+  return `
+    <section class="section story-section" id="story">
+      <div class="container">
+        <div class="story-grid ${site.aboutImageUrl ? 'has-image' : 'text-only'}">
+          ${site.aboutImageUrl ? `
+            <div class="story-image-wrap">
+              <img src="${escapeHtml(site.aboutImageUrl)}" alt="${title}" loading="lazy" />
+            </div>
+          ` : ''}
+          <div class="story-content">
+            <h2 class="section-title">${title}</h2>
+            <div class="story-text">
+              ${text.split('\n\n').map(p => `<p>${p}</p>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 export function generateStaticHtml(site: SiteData): string {
   const phone = cleanPhone(site.whatsappNumber);
   const themeColor = site.themeColor || '#2563eb';
@@ -109,22 +256,7 @@ export function generateStaticHtml(site: SiteData): string {
     }).join('\n');
 
     templateContent = `
-      <section class="features-bar">
-        <div class="container features-grid">
-          <div class="feature-item">
-            <span class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
-            <div><strong>100% Authentic</strong><p>Curated Premium Selection</p></div>
-          </div>
-          <div class="feature-item">
-            <span class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.771.815 2.796.815 3.182 0 5.768-2.587 5.768-5.767.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.768c0 5.48-4.453 9.932-9.969 9.932-1.748 0-3.38-.456-4.807-1.252l-5.224 1.38 1.399-5.109c-.896-1.487-1.408-3.228-1.408-5.087 0-5.48 4.453-9.932 9.969-9.932 5.516 0 10.04 4.452 10.04 9.932z"/></svg></span>
-            <div><strong>Instant WhatsApp Checkout</strong><p>Direct Seller Support</p></div>
-          </div>
-          <div class="feature-item">
-            <span class="feature-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></span>
-            <div><strong>Fast Doorstep Shipping</strong><p>Safe &amp; Express Transit</p></div>
-          </div>
-        </div>
-      </section>
+      ${renderTrustBadgesHtml(site)}
 
       <section class="section products-section" id="products">
         <div class="container">
@@ -137,6 +269,10 @@ export function generateStaticHtml(site: SiteData): string {
           </div>
         </div>
       </section>
+
+      ${renderAboutStoryHtml(site)}
+      ${renderReviewsHtml(site)}
+      ${renderFaqHtml(site)}
     `;
   } else if (site.type === 'portfolio') {
     const skills = site.portfolioSkills || [];
@@ -220,6 +356,9 @@ export function generateStaticHtml(site: SiteData): string {
           </div>
         </div>
       </section>
+
+      ${renderReviewsHtml(site)}
+      ${renderFaqHtml(site)}
     `;
   } else if (site.type === 'single_product') {
     const sp = site.singleProduct || {
@@ -288,6 +427,8 @@ export function generateStaticHtml(site: SiteData): string {
         </div>
       </section>
 
+      ${renderTrustBadgesHtml(site)}
+
       ${sp.specifications && sp.specifications.length > 0 ? `
         <section class="section specs-section">
           <div class="container max-w-3xl">
@@ -308,22 +449,9 @@ export function generateStaticHtml(site: SiteData): string {
         </section>
       ` : ''}
 
-      ${sp.reviews && sp.reviews.length > 0 ? `
-        <section class="section reviews-section">
-          <div class="container">
-            <h2 class="section-title">Customer Reviews</h2>
-            <div class="reviews-grid">
-              ${sp.reviews.map(r => `
-                <div class="review-card">
-                  <div class="stars">${'★'.repeat(r.rating || 5)}</div>
-                  <p class="review-comment">"${escapeHtml(r.comment)}"</p>
-                  <span class="reviewer-name">— ${escapeHtml(r.reviewerName)}</span>
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        </section>
-      ` : ''}
+      ${renderAboutStoryHtml(site)}
+      ${renderReviewsHtml(site)}
+      ${renderFaqHtml(site)}
     `;
   }
 
@@ -940,9 +1068,158 @@ export function generateStaticHtml(site: SiteData): string {
       width: 32px;
       height: 32px;
     }
+
+    /* Announcement Bar */
+    .announcement-bar {
+      padding: 0.55rem 1rem;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .announcement-inner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    /* FAQ Section */
+    .faq-section {
+      padding: 5rem 0;
+    }
+    .faq-accordion {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .faq-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .faq-item.active {
+      border-color: var(--primary);
+    }
+    .faq-question {
+      width: 100%;
+      text-align: left;
+      padding: 1.25rem 1.5rem;
+      background: transparent;
+      border: none;
+      color: #ffffff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      font-family: var(--font);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .faq-icon {
+      font-size: 1.35rem;
+      font-weight: 400;
+      color: var(--primary);
+      margin-left: 1rem;
+      transition: transform 0.2s;
+    }
+    .faq-answer {
+      display: none;
+      padding: 0 1.5rem 1.25rem 1.5rem;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+    .faq-item.active .faq-answer {
+      display: block;
+    }
+
+    /* Story Section */
+    .story-section {
+      padding: 4rem 0;
+    }
+    .story-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+    }
+    .story-grid.text-only {
+      grid-template-columns: 1fr;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    @media (max-width: 768px) {
+      .story-grid { grid-template-columns: 1fr; gap: 2rem; }
+    }
+    .story-image-wrap {
+      border-radius: 20px;
+      overflow: hidden;
+      height: 380px;
+      border: 1px solid var(--border);
+    }
+    .story-image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .story-text p {
+      margin-bottom: 1rem;
+      color: #cbd5e1;
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    /* Footer styling */
+    .footer-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .footer-blurb {
+      max-width: 400px;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+    }
+    .footer-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .footer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 1.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .footer-address {
+      font-size: 0.85rem;
+    }
+    .footer-email {
+      color: var(--primary);
+    }
   </style>
 </head>
 <body>
+
+  <!-- Announcement Bar (Top) -->
+  ${site.announcementEnabled !== false && (site.announcementText || '').trim() ? `
+    <div class="announcement-bar" style="background: ${escapeHtml(site.announcementBgColor || themeColor)}; color: ${escapeHtml(site.announcementTextColor || '#ffffff')};">
+      <div class="container announcement-inner">
+        <span>${escapeHtml(site.announcementText || '')}</span>
+      </div>
+    </div>
+  ` : ''}
 
   <!-- Sticky Header -->
   <header class="site-header">
@@ -952,7 +1229,7 @@ export function generateStaticHtml(site: SiteData): string {
       </a>
       <a href="${floatingWaUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">
         <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.771.815 2.796.815 3.182 0 5.768-2.587 5.768-5.767.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.768c0 5.48-4.453 9.932-9.969 9.932-1.748 0-3.38-.456-4.807-1.252l-5.224 1.38 1.399-5.109c-.896-1.487-1.408-3.228-1.408-5.087 0-5.48 4.453-9.932 9.969-9.932 5.516 0 10.04 4.452 10.04 9.932z"/></svg>
-        WhatsApp Us
+        ${escapeHtml(site.headerCtaText || 'WhatsApp Us')}
       </a>
     </div>
   </header>
@@ -970,13 +1247,27 @@ export function generateStaticHtml(site: SiteData): string {
   <!-- Footer -->
   <footer class="site-footer">
     <div class="container footer-inner">
-      <div class="brand-wrap">
-        ${brandHtml}
+      <div class="footer-top">
+        <div class="brand-wrap">
+          ${brandHtml}
+        </div>
+        ${site.footerBlurb ? `<p class="footer-blurb">${escapeHtml(site.footerBlurb)}</p>` : ''}
+        <div class="footer-actions">
+          <a href="${floatingWaUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">
+            Chat with Support
+          </a>
+          ${site.footerInstagramUrl ? `
+            <a href="${escapeHtml(site.footerInstagramUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">
+              Instagram
+            </a>
+          ` : ''}
+        </div>
       </div>
-      <p class="footer-copy">&copy; ${new Date().getFullYear()} ${siteTitle}. All rights reserved. Direct WhatsApp Commerce.</p>
-      <a href="${floatingWaUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">
-        Chat with Support
-      </a>
+      <div class="footer-bottom">
+        <p class="footer-copy">${escapeHtml(site.footerCopyright || `© ${new Date().getFullYear()} ${siteTitle}. All rights reserved. Direct WhatsApp Commerce.`)}</p>
+        ${site.footerAddress ? `<p class="footer-address">${escapeHtml(site.footerAddress)}</p>` : ''}
+        ${site.footerEmail ? `<a href="mailto:${escapeHtml(site.footerEmail)}" class="footer-email">${escapeHtml(site.footerEmail)}</a>` : ''}
+      </div>
     </div>
   </footer>
 
@@ -985,9 +1276,26 @@ export function generateStaticHtml(site: SiteData): string {
     <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 1.771.815 2.796.815 3.182 0 5.768-2.587 5.768-5.767.001-3.18-2.585-5.766-5.768-5.766zm9.969 5.768c0 5.48-4.453 9.932-9.969 9.932-1.748 0-3.38-.456-4.807-1.252l-5.224 1.38 1.399-5.109c-.896-1.487-1.408-3.228-1.408-5.087 0-5.48 4.453-9.932 9.969-9.932 5.516 0 10.04 4.452 10.04 9.932z"/></svg>
   </a>
 
-  <!-- Self-contained Vanilla JS Carousel & Interaction logic -->
+  <!-- Interactive JavaScript -->
   <script>
     (function() {
+      // FAQ Accordion Click Handler
+      document.querySelectorAll('.faq-question').forEach(button => {
+        button.addEventListener('click', () => {
+          const item = button.closest('.faq-item');
+          const wasActive = item.classList.contains('active');
+          document.querySelectorAll('.faq-item').forEach(i => {
+            i.classList.remove('active');
+            const icon = i.querySelector('.faq-icon');
+            if (icon) icon.textContent = '+';
+          });
+          if (!wasActive) {
+            item.classList.add('active');
+            const icon = item.querySelector('.faq-icon');
+            if (icon) icon.textContent = '−';
+          }
+        });
+      });
       const carousel = document.getElementById('mainCarousel');
       if (!carousel) return;
 
