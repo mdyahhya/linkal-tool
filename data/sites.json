@@ -4,7 +4,7 @@
     "name": "Adil Portfolio ",
     "slug": "adil-portfolio",
     "type": "portfolio",
-    "status": "draft",
+    "status": "deploying",
     "whatsappNumber": "918485022484",
     "defaultWhatsappMessage": "Hi Adil Portfolio , I saw your website and would like to place an order!",
     "themeColor": "#4f46e5",
@@ -44,7 +44,8 @@
       }
     ],
     "createdAt": "2026-09-09T08:18:39.309Z",
-    "updatedAt": "2026-09-09T08:18:57.193Z"
+    "updatedAt": "2026-09-09T08:18:57.951Z",
+    "deploymentLogs": []
   },
   {
     "id": "site-1788899439940",
