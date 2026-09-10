@@ -1,5 +1,63 @@
 [
   {
+    "id": "demo-portfolio",
+    "name": "Kabir Verma — Visual & Product Designer",
+    "slug": "kabir-portfolio",
+    "type": "portfolio",
+    "status": "draft",
+    "whatsappNumber": "919876543210",
+    "defaultWhatsappMessage": "Hi Kabir, I saw your portfolio and would love to collaborate on a design project!",
+    "logoUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
+    "themeColor": "#4f46e5",
+    "fontFamily": "Inter",
+    "portfolioRoleTitle": "Senior Product Designer & Brand Strategist",
+    "portfolioAvatarUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&auto=format&fit=crop&q=80",
+    "portfolioAbout": "I design intuitive digital experiences and high-converting brand identities.",
+    "bannerSlider": [
+      {
+        "id": "p-slide-1",
+        "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1600&auto=format&fit=crop&q=80",
+        "title": "Building Intuitive Digital Products",
+        "subtitle": "From user research and design systems to production-ready interfaces.",
+        "ctaText": "Hire Me on WhatsApp"
+      }
+    ],
+    "portfolioSkills": [
+      {
+        "id": "sk-1",
+        "name": "UI/UX Design",
+        "level": "Expert",
+        "category": "Design"
+      },
+      {
+        "id": "sk-2",
+        "name": "Design Systems",
+        "level": "Expert",
+        "category": "Design"
+      },
+      {
+        "id": "sk-3",
+        "name": "Figma & Prototyping",
+        "level": "Advanced",
+        "category": "Tooling"
+      }
+    ],
+    "portfolioProjects": [
+      {
+        "id": "proj-1",
+        "title": "Finflow — Next-Gen Neobank App",
+        "description": "End-to-end mobile design for a modern financial management app with 250k+ active users.",
+        "imageUrl": "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&auto=format&fit=crop&q=80",
+        "tags": [
+          "Fintech",
+          "Mobile UX"
+        ]
+      }
+    ],
+    "createdAt": "2026-09-08T00:00:00.000Z",
+    "updatedAt": "2026-09-10T12:40:32.964Z"
+  },
+  {
     "id": "demo-shop",
     "name": "Aura Luxury Handbags",
     "slug": "aura-luxury",
