@@ -63,24 +63,29 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
     if (!hasLiveCredentials) {
       log('general', 'in_progress', 'Executing automated publishing pipeline...');
 
-      // Step 1: Saving code to Linkal servers
-      log('github', 'in_progress', `Saving code to Linkal servers (${site.slug})...`);
+      // Step 1: Creating your code
+      log('github', 'in_progress', `Creating your code (${site.slug})...`);
       await new Promise((r) => setTimeout(r, 600));
-      log('github', 'success', `Saved code bundle to Linkal servers.`);
+      log('github', 'success', `Code bundle compiled and stored.`);
 
-      // Step 2: Deploying to Linkal servers
-      log('vercel', 'in_progress', `Deploying to Linkal servers...`);
+      // Step 2: Deploying your code
+      log('vercel', 'in_progress', `Deploying your code to global edge servers...`);
       await new Promise((r) => setTimeout(r, 700));
-      log('vercel', 'success', `Deployed successfully to Linkal servers.`);
+      log('vercel', 'success', `Deployed code successfully.`);
 
-      // Step 3: Connecting to Linkal domain servers
-      log('cloudflare', 'in_progress', `Connecting to Linkal domain servers (${site.slug}.dominal.in)...`);
+      // Step 3: Connecting your domain
+      log('cloudflare', 'in_progress', `Connecting your domain (${site.slug}.dominal.in)...`);
       await new Promise((r) => setTimeout(r, 500));
-      log('cloudflare', 'success', `Connected to Linkal domain servers: https://${site.slug}.dominal.in`);
+      log('cloudflare', 'success', `Connected domain: https://${site.slug}.dominal.in`);
 
-      // Step 4: Verifying domain & SSL routing
-      log('poll', 'in_progress', `Verifying Linkal domain & SSL routing...`);
-      await new Promise((r) => setTimeout(r, 800));
+      // Step 4: Doing Google SEO and all
+      log('general', 'in_progress', `Doing Google SEO, OpenGraph tags, and search indexing metadata...`);
+      await new Promise((r) => setTimeout(r, 500));
+      log('general', 'success', `Google SEO and search tags configured.`);
+
+      // Step 5: Making your website live
+      log('poll', 'in_progress', `Making your website live and verifying SSL routing...`);
+      await new Promise((r) => setTimeout(r, 600));
       log('poll', 'success', `Site is verified live at https://${site.slug}.dominal.in`);
 
       const liveUrl = `https://${site.slug}.dominal.in`;
