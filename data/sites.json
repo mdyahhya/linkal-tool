@@ -397,7 +397,7 @@
   },
   {
     "id": "site-1788899439940",
-    "name": "Solapur Shop",
+    "name": "Solapur shop",
     "slug": "solapurshop",
     "type": "ecommerce",
     "status": "live",
@@ -429,7 +429,7 @@
       }
     ],
     "createdAt": "2026-09-08T20:30:39.940Z",
-    "updatedAt": "2026-09-15T10:56:24.605Z",
+    "updatedAt": "2026-09-15T15:23:12.894Z",
     "deploymentLogs": [
       {
         "step": "general",
