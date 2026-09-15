@@ -350,53 +350,8 @@ function DashboardContent() {
     }
   };
 
-  const handlePublish = async (site: SiteData) => {
-    setActiveDeploymentSite(site);
-    setDeploying(true);
-    setDeploymentError(null);
-
-    try {
-      const res = await fetch(`/api/sites/${site.id}/publish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site }),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Deployment pipeline encountered an error');
-      }
-
-      const publishedSite: SiteData = {
-        ...(data.site || site),
-        status: 'live',
-        liveUrl: data.site?.liveUrl || `https://${site.slug}.dominal.in`,
-        deploymentLogs: data.site?.deploymentLogs || site.deploymentLogs,
-      };
-
-      setActiveDeploymentSite(publishedSite);
-
-      // Immediately persist to local history
-      try {
-        const local = localStorage.getItem('linkal_sites_history');
-        if (local) {
-          const list: SiteData[] = JSON.parse(local);
-          const idx = list.findIndex((s) => s.id === publishedSite.id);
-          if (idx >= 0) list[idx] = publishedSite;
-          else list.unshift(publishedSite);
-          localStorage.setItem('linkal_sites_history', JSON.stringify(list));
-        } else {
-          localStorage.setItem('linkal_sites_history', JSON.stringify([publishedSite]));
-        }
-      } catch {}
-
-      fetchSites();
-    } catch (err: any) {
-      setDeploymentError(err.message || 'Deployment failed');
-      fetchSites();
-    } finally {
-      setDeploying(false);
-    }
+  const handlePublish = (site: SiteData) => {
+    router.push(`/deploy/${site.id}`);
   };
 
   // Filtered sites
@@ -1623,7 +1578,7 @@ function DashboardContent() {
                 </div>
 
                 <p className="text-[11px] text-amber-800 font-medium">
-                  💡 Global DNS and SSL propagation take approximately 30 seconds for new or modified records.
+                  Global DNS and SSL propagation take approximately 30 seconds for new or modified records.
                 </p>
               </div>
             )}
@@ -1666,7 +1621,7 @@ function DashboardContent() {
                 </div>
                 <p className="font-medium text-red-800">{deploymentError}</p>
                 <div className="pt-1 text-[11px] text-zinc-600 border-t border-red-200">
-                  💡 <strong>Troubleshooting Tip:</strong> Ensure platform API tokens are configured in your platform environment settings.
+                  <strong>Troubleshooting Tip:</strong> Ensure platform API tokens are configured in your platform environment settings.
                 </div>
               </div>
             )}
@@ -1822,7 +1777,7 @@ function DashboardContent() {
 
             <div className="space-y-4 text-xs">
               <div className="p-3.5 bg-zinc-50 border border-zinc-200 rounded-xl space-y-1">
-                <span className="font-bold text-zinc-950 block">⚡ Automated Cloud Engine Active</span>
+                <span className="font-bold text-zinc-950 block">Automated Cloud Engine Active</span>
                 <p className="text-zinc-600 font-medium">
                   Configured environment keys enable zero-touch publishing of customer storefronts under <code className="text-zinc-950 font-mono bg-zinc-200 px-1 rounded">*.dominal.in</code>.
                 </p>

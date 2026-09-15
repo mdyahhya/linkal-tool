@@ -61,7 +61,7 @@ export async function executeDeploymentPipeline(site: SiteData): Promise<Pipelin
     );
 
     if (!hasLiveCredentials) {
-      log('general', 'in_progress', '⚡ Executing automated publishing pipeline...');
+      log('general', 'in_progress', 'Executing automated publishing pipeline...');
 
       // Step 1: Saving code to Linkal servers
       log('github', 'in_progress', `Saving code to Linkal servers (${site.slug})...`);

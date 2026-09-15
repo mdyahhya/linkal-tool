@@ -290,58 +290,23 @@ export default function BuilderPage() {
   // Handle Publish
   const handlePublish = async () => {
     if (!site) return;
-    setShowPublishModal(true);
-    setDeploying(true);
+    setSaving(true);
 
     try {
-      // Save first
+      // Save any pending builder changes first
       await fetch(`/api/sites/${site.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(site),
       });
-
-      const res = await fetch(`/api/sites/${site.id}/publish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ site }),
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Deployment failed');
-      }
-
-      const publishedSite: SiteData = {
-        ...(data.site || site),
-        status: 'live',
-        liveUrl: data.site?.liveUrl || `https://${site.slug}.dominal.in`,
-        deploymentLogs: data.site?.deploymentLogs || deploymentLogs,
-      };
-
-      setSite(publishedSite);
-      setDeploymentLogs(publishedSite.deploymentLogs || []);
-
-      // Persist to local history immediately with live URL & status
-      try {
-        const local = localStorage.getItem('linkal_sites_history');
-        if (local) {
-          const list: SiteData[] = JSON.parse(local);
-          const idx = list.findIndex((s) => s.id === publishedSite.id);
-          if (idx >= 0) list[idx] = publishedSite;
-          else list.unshift(publishedSite);
-          localStorage.setItem('linkal_sites_history', JSON.stringify(list));
-        } else {
-          localStorage.setItem('linkal_sites_history', JSON.stringify([publishedSite]));
-        }
-      } catch {}
-
-      // Keep popup open so user can inspect live domain link & preview
-    } catch (err: any) {
-      alert(err.message || 'Publishing failed');
+    } catch (err) {
+      console.warn('Auto-save before deploy:', err);
     } finally {
-      setDeploying(false);
+      setSaving(false);
     }
+
+    // Launch the agentic AI deployment engine page
+    router.push(`/deploy/${site.id}`);
   };
 
   // Update site helper with instant state & local cache update
@@ -1626,9 +1591,9 @@ export default function BuilderPage() {
                   <label className="block text-xs font-bold text-zinc-900 mb-1">Banner Announcement Text</label>
                   <textarea
                     rows={3}
-                    value={site.announcementText ?? '⚡ SPECIAL OFFER: FREE EXPRESS SHIPPING ACROSS INDIA • ORDER DIRECTLY VIA WHATSAPP'}
+                    value={site.announcementText ?? 'SPECIAL OFFER: FREE EXPRESS SHIPPING ACROSS INDIA • ORDER DIRECTLY VIA WHATSAPP'}
                     onChange={(e) => updateSiteField('announcementText', e.target.value)}
-                    placeholder="e.g. ⚡ FREE ALL-INDIA SHIPPING ON ORDERS ABOVE ₹999 • LIMITED PERIOD OFFER"
+                    placeholder="e.g. FREE ALL-INDIA SHIPPING ON ORDERS ABOVE ₹999 • LIMITED PERIOD OFFER"
                     className="w-full px-3.5 py-2 bg-white border border-zinc-300 rounded-xl text-xs font-bold text-zinc-950 focus:ring-2 focus:ring-zinc-950"
                   />
                   <p className="text-[10px] text-zinc-500 mt-1">Updates live across the top banner in real-time preview.</p>
@@ -1791,12 +1756,12 @@ export default function BuilderPage() {
                             }}
                             className="w-full px-2 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-bold text-zinc-900"
                           >
-                            <option value="truck">🚚 Shipping (Truck)</option>
-                            <option value="shield">🛡️ Verified (Shield)</option>
-                            <option value="refresh">🔄 Returns (Exchange)</option>
-                            <option value="clock">⏱️ Support (Clock)</option>
-                            <option value="star">⭐ Star Rating</option>
-                            <option value="heart">❤️ Craftsmanship</option>
+                            <option value="truck">Fast Shipping (Truck)</option>
+                            <option value="shield">Verified Authentic (Shield)</option>
+                            <option value="refresh">Easy Returns (Exchange)</option>
+                            <option value="clock">Direct Support (Clock)</option>
+                            <option value="star">Top Rated (Star)</option>
+                            <option value="heart">Premium Craft (Heart)</option>
                           </select>
                         </div>
 
@@ -1976,9 +1941,9 @@ export default function BuilderPage() {
                             }}
                             className="w-full px-2 py-1 bg-white border border-zinc-300 rounded text-xs font-bold text-amber-600"
                           >
-                            <option value={5}>⭐⭐⭐⭐⭐ 5 Stars</option>
-                            <option value={4}>⭐⭐⭐⭐ 4 Stars</option>
-                            <option value={3}>⭐⭐⭐ 3 Stars</option>
+                            <option value={5}>5 Stars (Excellent)</option>
+                            <option value={4}>4 Stars (Very Good)</option>
+                            <option value={3}>3 Stars (Average)</option>
                           </select>
                         </div>
                       </div>
@@ -2570,7 +2535,7 @@ export default function BuilderPage() {
                 </div>
 
                 <p className="text-[11px] text-amber-800 font-medium">
-                  💡 DNS propagation across global edge nodes takes approximately 30 seconds. Your storefront will be live automatically.
+                  DNS propagation across global edge nodes takes approximately 30 seconds. Your storefront will be live automatically.
                 </p>
               </div>
             )}
